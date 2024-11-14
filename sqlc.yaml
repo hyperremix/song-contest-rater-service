@@ -1,0 +1,11 @@
+version: "2"
+cloud:
+sql:
+  - engine: "postgresql"
+    queries: "sqlc/queries"
+    schema: "sqlc/migrations"
+    gen:
+      go:
+        package: "db"
+        out: "db"
+        sql_package: "pgx/v5"

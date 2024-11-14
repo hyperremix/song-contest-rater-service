@@ -1,0 +1,16 @@
+version: "3.3"
+services:
+  database:
+    image: postgres:16.1-alpine3.19
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: song_contest_rater_service
+      POSTGRES_PASSWORD: song_contest_rater_service
+      POSTGRES_DB: song_contest_rater_service
+    volumes:
+      - database_data:/var/lib/postgresql/data
+
+volumes:
+  database_data:
+    driver: local

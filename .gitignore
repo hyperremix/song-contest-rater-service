@@ -1,0 +1,10 @@
+/app
+*.swp
+*.test
+*.out
+tmp
+/song-contest-rater-service
+.DS_Store
+.env
+protos/
+db/
