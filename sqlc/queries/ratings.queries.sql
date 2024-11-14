@@ -27,12 +27,9 @@ SET
     "show" = $3,
     looks = $4,
     clothes = $5,
-    user_id = $6,
-    competition_id = $7,
-    act_id = $8,
     updated_at = NOW()
 WHERE
-    id = $9 RETURNING *;
+    id = $6 RETURNING *;
 
 -- name: DeleteRatingById :one
 DELETE FROM ratings WHERE id = $1 RETURNING *;

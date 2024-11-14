@@ -50,6 +50,9 @@ func RunServer() error {
 	reflection.Register(grpcServer)
 
 	songcontestrater.RegisterCompetitionServer(grpcServer, server.NewCompetitionServer(connPool))
+	songcontestrater.RegisterActServer(grpcServer, server.NewActServer(connPool))
+	songcontestrater.RegisterRatingServer(grpcServer, server.NewRatingServer(connPool))
+	songcontestrater.RegisterUserServer(grpcServer, server.NewUserServer(connPool))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

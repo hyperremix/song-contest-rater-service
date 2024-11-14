@@ -60,7 +60,22 @@ func (s *competitionServer) GetCompetition(ctx context.Context, request *pb.GetC
 		return nil, status.Errorf(codes.Internal, "could not get competition: %v", err)
 	}
 
-	response, err := mapper.FromDbCompetitionToResponse(competition)
+	ratings, err := queries.ListRatingsByCompetitionId(ctx, competition.ID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not list ratings: %v", err)
+	}
+
+	acts, err := queries.ListActsByCompetitionId(ctx, competition.ID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not list acts: %v", err)
+	}
+
+	users, err := queries.ListUsersByCompetitionId(ctx, competition.ID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not list users: %v", err)
+	}
+
+	response, err := mapper.FromDbToCompetitionWithRatingsActsAndUsersResponse(competition, ratings, acts, users)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not convert competition to proto: %v", err)
 	}
@@ -89,6 +104,7 @@ func (s *competitionServer) CreateCompetition(ctx context.Context, request *pb.C
 
 	return response, nil
 }
+
 func (s *competitionServer) UpdateCompetition(ctx context.Context, request *pb.UpdateCompetitionRequest) (*pb.CompetitionResponse, error) {
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {

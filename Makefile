@@ -66,4 +66,4 @@ sqlc-generate:
 ## proto-generate: generate protobuf files
 .PHONY: proto-generate
 proto-generate:
-	 go get github.com/hyperremix/song-contest-rater-proto@$(VERSION) && protoc -I=${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION) --go_out=. --go-grpc_out=. ${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION)/*.proto
+	 go get github.com/hyperremix/song-contest-rater-proto@$(VERSION) && protoc -I=${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION) --go_out=. --go-grpc_out=. ${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION)/*.proto && go mod tidy
