@@ -21,7 +21,7 @@ func FromDbCompetitionListToResponse(c []db.Competition) (*pb.ListCompetitionsRe
 }
 
 func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, error) {
-	id, err := fromDbToProtoId(c.ID)
+	id, err := FromDbToProtoId(c.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +31,10 @@ func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, err
 		City:        c.City,
 		Country:     c.Country,
 		Description: c.Description,
-		StartTime:   mapFromDbToProtoTimestamp(c.StartTime),
+		StartTime:   fromDbToProtoTimestamp(c.StartTime),
 		ImageUrl:    c.ImageUrl,
-		CreatedAt:   mapFromDbToProtoTimestamp(c.CreatedAt),
-		UpdatedAt:   mapFromDbToProtoTimestamp(c.UpdatedAt),
+		CreatedAt:   fromDbToProtoTimestamp(c.CreatedAt),
+		UpdatedAt:   fromDbToProtoTimestamp(c.UpdatedAt),
 	}, nil
 }
 
@@ -94,7 +94,7 @@ func FromCreateRequestToInsertCompetition(r *pb.CreateCompetitionRequest) db.Ins
 		City:        r.City,
 		Country:     r.Country,
 		Description: r.Description,
-		StartTime:   mapFromProtoToDbTimestamp(r.StartTime),
+		StartTime:   fromProtoToDbTimestamp(r.StartTime),
 		ImageUrl:    r.ImageUrl,
 	}
 }
@@ -110,7 +110,7 @@ func FromUpdateRequestToUpdateCompetition(r *pb.UpdateCompetitionRequest) (db.Up
 		City:        r.City,
 		Country:     r.Country,
 		Description: r.Description,
-		StartTime:   mapFromProtoToDbTimestamp(r.StartTime),
+		StartTime:   fromProtoToDbTimestamp(r.StartTime),
 		ImageUrl:    r.ImageUrl,
 	}, nil
 }

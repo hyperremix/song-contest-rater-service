@@ -21,7 +21,7 @@ func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
 }
 
 func FromDbUserToResponse(u db.User) (*pb.UserResponse, error) {
-	id, err := fromDbToProtoId(u.ID)
+	id, err := FromDbToProtoId(u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,13 +32,14 @@ func FromDbUserToResponse(u db.User) (*pb.UserResponse, error) {
 		Firstname: u.Firstname,
 		Lastname:  u.Lastname,
 		ImageUrl:  u.ImageUrl,
-		CreatedAt: mapFromDbToProtoTimestamp(u.CreatedAt),
-		UpdatedAt: mapFromDbToProtoTimestamp(u.UpdatedAt),
+		CreatedAt: fromDbToProtoTimestamp(u.CreatedAt),
+		UpdatedAt: fromDbToProtoTimestamp(u.UpdatedAt),
 	}, nil
 }
 
-func FromCreateRequestToInsertUser(c *pb.CreateUserRequest) (db.InsertUserParams, error) {
+func FromCreateRequestToInsertUser(c *pb.CreateUserRequest, sub string) (db.InsertUserParams, error) {
 	return db.InsertUserParams{
+		Sub:       sub,
 		Email:     c.Email,
 		Firstname: c.Firstname,
 		Lastname:  c.Lastname,
@@ -54,7 +55,6 @@ func FromUpdateRequestToUpdateUser(c *pb.UpdateUserRequest) (db.UpdateUserParams
 
 	return db.UpdateUserParams{
 		ID:        id,
-		Email:     c.Email,
 		Firstname: c.Firstname,
 		Lastname:  c.Lastname,
 		ImageUrl:  c.ImageUrl,

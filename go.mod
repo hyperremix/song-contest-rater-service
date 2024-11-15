@@ -5,9 +5,11 @@ go 1.22.7
 toolchain go1.22.9
 
 require (
+	github.com/auth0/go-jwt-middleware/v2 v2.2.2
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/jackc/pgx/v5 v5.7.1
+	github.com/joho/godotenv v1.5.1
 	github.com/rs/zerolog v1.33.0
 	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.34.2
@@ -25,4 +27,5 @@ require (
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 )

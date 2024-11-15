@@ -21,7 +21,7 @@ func FromDbActListToResponse(a []db.Act) (*pb.ListActsResponse, error) {
 }
 
 func FromDbActToResponse(a db.Act) (*pb.ActResponse, error) {
-	id, err := fromDbToProtoId(a.ID)
+	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +31,8 @@ func FromDbActToResponse(a db.Act) (*pb.ActResponse, error) {
 		ArtistName: a.ArtistName,
 		SongName:   a.SongName,
 		ImageUrl:   a.ImageUrl,
-		CreatedAt:  mapFromDbToProtoTimestamp(a.CreatedAt),
-		UpdatedAt:  mapFromDbToProtoTimestamp(a.UpdatedAt),
+		CreatedAt:  fromDbToProtoTimestamp(a.CreatedAt),
+		UpdatedAt:  fromDbToProtoTimestamp(a.UpdatedAt),
 	}, nil
 }
 

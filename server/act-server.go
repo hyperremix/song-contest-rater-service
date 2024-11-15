@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
+	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
@@ -70,6 +72,11 @@ func (s *actServer) GetAct(ctx context.Context, request *pb.GetActRequest) (*pb.
 }
 
 func (s *actServer) CreateAct(ctx context.Context, request *pb.CreateActRequest) (*pb.ActResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteActs) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteActs)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -96,6 +103,11 @@ func (s *actServer) CreateAct(ctx context.Context, request *pb.CreateActRequest)
 }
 
 func (s *actServer) UpdateAct(ctx context.Context, request *pb.UpdateActRequest) (*pb.ActResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteActs) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteActs)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -122,6 +134,11 @@ func (s *actServer) UpdateAct(ctx context.Context, request *pb.UpdateActRequest)
 }
 
 func (s *actServer) DeleteAct(ctx context.Context, request *pb.DeleteActRequest) (*pb.ActResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteActs) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteActs)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)

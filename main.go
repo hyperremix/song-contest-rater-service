@@ -8,10 +8,12 @@ import (
 	"os/signal"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/environment"
 	"github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/hyperremix/song-contest-rater-service/server"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
@@ -19,8 +21,12 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load(".env"); err != nil {
+		log.Fatal().Msgf("Error loading .env file: %s", err)
+	}
+
 	if err := RunServer(); err != nil {
-		log.Error().Msgf("%v\n", err)
+		log.Fatal().Msgf("%v\n", err)
 	}
 }
 
@@ -42,6 +48,7 @@ func RunServer() error {
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			logging.UnaryServerInterceptor(InterceptorLogger(logger), opts...),
+			authz.UnaryServerInterceptor(connPool),
 		),
 		grpc.ChainStreamInterceptor(
 			logging.StreamServerInterceptor(InterceptorLogger(logger), opts...),

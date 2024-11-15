@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func fromDbToProtoId(id pgtype.UUID) (string, error) {
+func FromDbToProtoId(id pgtype.UUID) (string, error) {
 	uuid, err := uuid.FromBytes(id.Bytes[:])
 	if err != nil {
 		return "", err
@@ -24,10 +24,10 @@ func FromProtoToDbId(id string) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: uuid, Valid: true}, nil
 }
 
-func mapFromProtoToDbTimestamp(timestamp *timestamppb.Timestamp) pgtype.Timestamptz {
+func fromProtoToDbTimestamp(timestamp *timestamppb.Timestamp) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: timestamp.AsTime(), Valid: true}
 }
 
-func mapFromDbToProtoTimestamp(timestamp pgtype.Timestamptz) *timestamppb.Timestamp {
+func fromDbToProtoTimestamp(timestamp pgtype.Timestamptz) *timestamppb.Timestamp {
 	return timestamppb.New(timestamp.Time)
 }

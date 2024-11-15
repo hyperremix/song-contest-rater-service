@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
+	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
@@ -83,6 +85,11 @@ func (s *competitionServer) GetCompetition(ctx context.Context, request *pb.GetC
 	return response, nil
 }
 func (s *competitionServer) CreateCompetition(ctx context.Context, request *pb.CreateCompetitionRequest) (*pb.CompetitionResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteCompetitions) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteCompetitions)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -106,6 +113,11 @@ func (s *competitionServer) CreateCompetition(ctx context.Context, request *pb.C
 }
 
 func (s *competitionServer) UpdateCompetition(ctx context.Context, request *pb.UpdateCompetitionRequest) (*pb.CompetitionResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteCompetitions) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteCompetitions)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -131,6 +143,11 @@ func (s *competitionServer) UpdateCompetition(ctx context.Context, request *pb.U
 	return response, nil
 }
 func (s *competitionServer) DeleteCompetition(ctx context.Context, request *pb.DeleteCompetitionRequest) (*pb.CompetitionResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteCompetitions) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteCompetitions)
+	}
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)

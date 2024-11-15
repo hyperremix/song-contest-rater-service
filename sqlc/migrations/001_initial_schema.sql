@@ -28,12 +28,14 @@ CREATE TABLE competitions_acts (
 
 CREATE TABLE users (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    sub TEXT NOT NULL,
     email TEXT NOT NULL,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
     image_url TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (sub)
 );
 
 CREATE TABLE ratings (

@@ -22,22 +22,22 @@ func FromDbRatingListToResponse(r []db.Rating) (*pb.ListRatingsResponse, error) 
 }
 
 func FromDbRatingToResponse(r db.Rating) (*pb.RatingResponse, error) {
-	id, err := fromDbToProtoId(r.ID)
+	id, err := FromDbToProtoId(r.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	competitionId, err := fromDbToProtoId(r.CompetitionID)
+	competitionId, err := FromDbToProtoId(r.CompetitionID)
 	if err != nil {
 		return nil, err
 	}
 
-	actId, err := fromDbToProtoId(r.ActID)
+	actId, err := FromDbToProtoId(r.ActID)
 	if err != nil {
 		return nil, err
 	}
 
-	userId, err := fromDbToProtoId(r.UserID)
+	userId, err := FromDbToProtoId(r.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,12 @@ func FromDbRatingToResponse(r db.Rating) (*pb.RatingResponse, error) {
 		Show:          r.Show.Int32,
 		Looks:         r.Looks.Int32,
 		Clothes:       r.Clothes.Int32,
-		CreatedAt:     mapFromDbToProtoTimestamp(r.CreatedAt),
-		UpdatedAt:     mapFromDbToProtoTimestamp(r.UpdatedAt),
+		CreatedAt:     fromDbToProtoTimestamp(r.CreatedAt),
+		UpdatedAt:     fromDbToProtoTimestamp(r.UpdatedAt),
 	}, nil
 }
 
-func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest) (db.InsertRatingParams, error) {
+func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest, protoUserId string) (db.InsertRatingParams, error) {
 	competitionId, err := FromProtoToDbId(c.CompetitionId)
 	if err != nil {
 		return db.InsertRatingParams{}, err
@@ -68,7 +68,7 @@ func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest) (db.InsertRating
 		return db.InsertRatingParams{}, err
 	}
 
-	userId, err := FromProtoToDbId(c.UserId)
+	userId, err := FromProtoToDbId(protoUserId)
 	if err != nil {
 		return db.InsertRatingParams{}, err
 	}

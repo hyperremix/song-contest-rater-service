@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
+	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
@@ -70,6 +72,8 @@ func (s *userServer) GetUser(ctx context.Context, request *pb.GetUserRequest) (*
 }
 
 func (s *userServer) CreateUser(ctx context.Context, request *pb.CreateUserRequest) (*pb.UserResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -77,7 +81,7 @@ func (s *userServer) CreateUser(ctx context.Context, request *pb.CreateUserReque
 	defer conn.Release()
 
 	queries := db.New(conn)
-	insertParams, err := mapper.FromCreateRequestToInsertUser(request)
+	insertParams, err := mapper.FromCreateRequestToInsertUser(request, authUser.Sub)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map request: %v", err)
 	}
@@ -103,6 +107,12 @@ func (s *userServer) UpdateUser(ctx context.Context, request *pb.UpdateUserReque
 	defer conn.Release()
 
 	queries := db.New(conn)
+
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteUsers) && authUser.UserID != request.Id {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteUsers)
+	}
+
 	updateParams, err := mapper.FromUpdateRequestToUpdateUser(request)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map request: %v", err)
@@ -132,6 +142,11 @@ func (s *userServer) DeleteUser(ctx context.Context, request *pb.DeleteUserReque
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map id: %v", err)
+	}
+
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+	if !authUser.HasPermission(permission.WriteUsers) && authUser.UserID != request.Id {
+		return nil, status.Errorf(codes.PermissionDenied, "missing permission: %s", permission.WriteUsers)
 	}
 
 	user, err := queries.DeleteUserById(ctx, id)

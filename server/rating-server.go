@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
@@ -122,6 +123,8 @@ func (s *ratingServer) GetRating(ctx context.Context, request *pb.GetRatingReque
 }
 
 func (s *ratingServer) CreateRating(ctx context.Context, request *pb.CreateRatingRequest) (*pb.RatingResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -129,7 +132,7 @@ func (s *ratingServer) CreateRating(ctx context.Context, request *pb.CreateRatin
 	defer conn.Release()
 
 	queries := db.New(conn)
-	insertRatingParams, err := mapper.FromCreateRequestToInsertRating(request)
+	insertRatingParams, err := mapper.FromCreateRequestToInsertRating(request, authUser.UserID)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map create request: %v", err)
 	}
@@ -148,6 +151,8 @@ func (s *ratingServer) CreateRating(ctx context.Context, request *pb.CreateRatin
 }
 
 func (s *ratingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatingRequest) (*pb.RatingResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -155,6 +160,21 @@ func (s *ratingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatin
 	defer conn.Release()
 
 	queries := db.New(conn)
+
+	id, err := mapper.FromProtoToDbId(request.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "could not map id: %v", err)
+	}
+
+	existingRating, err := queries.GetRatingById(ctx, id)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not get rating: %v", err)
+	}
+
+	if !authUser.IsOwner(existingRating) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing object ownership")
+	}
+
 	updateRatingParams, err := mapper.FromUpdateRequestToUpdateRating(request)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map update request: %v", err)
@@ -174,6 +194,8 @@ func (s *ratingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatin
 }
 
 func (s *ratingServer) DeleteRating(ctx context.Context, request *pb.DeleteRatingRequest) (*pb.RatingResponse, error) {
+	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+
 	conn, err := s.connPool.Acquire(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not acquire connection: %v", err)
@@ -181,9 +203,19 @@ func (s *ratingServer) DeleteRating(ctx context.Context, request *pb.DeleteRatin
 	defer conn.Release()
 
 	queries := db.New(conn)
+
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not map id: %v", err)
+	}
+
+	existingRating, err := queries.GetRatingById(ctx, id)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not get rating: %v", err)
+	}
+
+	if !authUser.IsOwner(existingRating) {
+		return nil, status.Errorf(codes.PermissionDenied, "missing object ownership")
 	}
 
 	rating, err := queries.DeleteRatingById(ctx, id)
