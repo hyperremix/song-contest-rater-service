@@ -3,10 +3,12 @@ package authz
 import (
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 	"reflect"
 	"strings"
 
 	"github.com/hyperremix/song-contest-rater-service/db"
+	"github.com/labstack/echo/v4"
 )
 
 type AuthUser struct {
@@ -15,22 +17,31 @@ type AuthUser struct {
 	Sub         string   `json:"sub"`
 }
 
-func (u *AuthUser) HasPermission(p string) bool {
+func (u *AuthUser) CheckHasPermission(p string) error {
 	for _, perm := range u.Permissions {
 		if perm == p {
-			return true
+			return nil
 		}
 	}
-	return false
+
+	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
 }
 
-func (u *AuthUser) IsOwner(obj any) bool {
+func (u *AuthUser) CheckIsOwner(obj any) error {
 	id := reflect.ValueOf(&obj).Elem().FieldByName("UserID").String()
-	return u.UserID == id
+	if u.UserID == id {
+		return nil
+	}
+
+	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
 }
 
-func (u *AuthUser) IsUser(user db.User) bool {
-	return u.Sub == user.Sub
+func (u *AuthUser) CheckIsUser(user db.User) error {
+	if u.Sub == user.Sub {
+		return nil
+	}
+
+	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
 }
 
 func (u *AuthUser) decode(s string) error {
@@ -38,5 +49,6 @@ func (u *AuthUser) decode(s string) error {
 	if err != nil {
 		return err
 	}
+
 	return json.Unmarshal(barr, u)
 }

@@ -2,22 +2,17 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net"
 	"os"
-	"os/signal"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/environment"
-	"github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
-	"github.com/hyperremix/song-contest-rater-service/server"
+	"github.com/hyperremix/song-contest-rater-service/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -25,78 +20,36 @@ func main() {
 		log.Fatal().Msgf("Error loading .env file: %s", err)
 	}
 
-	if err := RunServer(); err != nil {
-		log.Fatal().Msgf("%v\n", err)
-	}
-}
+	e := echo.New()
 
-func RunServer() error {
 	ctx := context.Background()
 
 	connPool, err := pgxpool.New(ctx, environment.DB_CONNECTION_STRING)
 	if err != nil {
-		return err
+		e.Logger.Fatal(err)
 	}
 	defer connPool.Close()
 
 	logger := zerolog.New(os.Stdout)
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus:  true,
+		LogLatency: true,
+		LogMethod:  true,
+		LogURI:     true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info().
+				Timestamp().
+				Int("status", v.Status).
+				Dur("latency", v.Latency).
+				Str("method", v.Method).
+				Str("URI", v.URI).
+				Msg("request")
 
-	opts := []logging.Option{
-		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
-	}
+			return nil
+		},
+	}), authz.RequestAuthorizer(connPool))
 
-	grpcServer := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			logging.UnaryServerInterceptor(InterceptorLogger(logger), opts...),
-			authz.UnaryServerInterceptor(connPool),
-		),
-		grpc.ChainStreamInterceptor(
-			logging.StreamServerInterceptor(InterceptorLogger(logger), opts...),
-		),
-	)
-	reflection.Register(grpcServer)
+	handler.RegisterHandlerRoutes(e, connPool)
 
-	songcontestrater.RegisterCompetitionServer(grpcServer, server.NewCompetitionServer(connPool))
-	songcontestrater.RegisterActServer(grpcServer, server.NewActServer(connPool))
-	songcontestrater.RegisterRatingServer(grpcServer, server.NewRatingServer(connPool))
-	songcontestrater.RegisterUserServer(grpcServer, server.NewUserServer(connPool))
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for range c {
-			log.Info().Msg("shutting down gRPC server...")
-
-			grpcServer.GracefulStop()
-
-			<-ctx.Done()
-		}
-	}()
-
-	listen, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		return err
-	}
-
-	log.Info().Msg("starting gRPC server... Listening on :8080")
-	return grpcServer.Serve(listen)
-}
-
-func InterceptorLogger(l zerolog.Logger) logging.Logger {
-	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		l := l.With().Fields(fields).Logger()
-
-		switch lvl {
-		case logging.LevelDebug:
-			l.Debug().Msg(msg)
-		case logging.LevelInfo:
-			l.Info().Msg(msg)
-		case logging.LevelWarn:
-			l.Warn().Msg(msg)
-		case logging.LevelError:
-			l.Error().Msg(msg)
-		default:
-			panic(fmt.Sprintf("unknown level %v", lvl))
-		}
-	})
+	e.Logger.Fatal(e.Start("localhost:8080"))
 }
