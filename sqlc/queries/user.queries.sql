@@ -6,6 +6,12 @@ SELECT u.* FROM users u
 JOIN ratings r ON u.id = r.user_id
 WHERE r.competition_id = $1;
 
+-- name: ListUsersByActId :many
+SELECT u.* FROM users u
+JOIN ratings r ON u.id = r.user_id
+JOIN acts a ON r.act_id = a.id
+WHERE a.id = $1;
+
 -- name: GetUserById :one
 SELECT * FROM users WHERE id = $1 LIMIT 1;
 

@@ -8,11 +8,14 @@ import (
 	"strings"
 
 	"github.com/hyperremix/song-contest-rater-service/db"
+	"github.com/hyperremix/song-contest-rater-service/mapper"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 )
 
 type AuthUser struct {
 	UserID      string
+	User        db.User
 	Permissions []string `json:"permissions"`
 	Sub         string   `json:"sub"`
 }
@@ -28,7 +31,12 @@ func (u *AuthUser) CheckHasPermission(p string) error {
 }
 
 func (u *AuthUser) CheckIsOwner(obj any) error {
-	id := reflect.ValueOf(&obj).Elem().FieldByName("UserID").String()
+	dbId := reflect.ValueOf(&obj).Elem().Elem().FieldByName("UserID").Interface().(pgtype.UUID)
+	id, err := mapper.FromDbToProtoId(dbId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert id")
+	}
+
 	if u.UserID == id {
 		return nil
 	}

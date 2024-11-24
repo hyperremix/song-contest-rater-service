@@ -48,7 +48,6 @@ func RequestAuthorizer(connPool *pgxpool.Pool) echo.MiddlewareFunc {
 			defer conn.Release()
 
 			queries := db.New(conn)
-
 			user, err := queries.GetUserBySub(ctx, authUser.Sub)
 			if err != nil {
 				echoCtx.Set(AuthUserContextKey, authUser)
@@ -59,6 +58,7 @@ func RequestAuthorizer(connPool *pgxpool.Pool) echo.MiddlewareFunc {
 				}
 
 				authUser.UserID = userID
+				authUser.User = user
 				echoCtx.Set(AuthUserContextKey, authUser)
 			}
 

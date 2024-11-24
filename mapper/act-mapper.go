@@ -1,15 +1,19 @@
 package mapper
 
 import (
+	"sort"
+
 	"github.com/hyperremix/song-contest-rater-service/db"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/hyperremix/song-contest-rater-service/util"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func FromDbActListToResponse(a []db.Act) (*pb.ListActsResponse, error) {
+func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) (*pb.ListActsResponse, error) {
 	var acts []*pb.ActResponse
 
 	for _, act := range a {
-		proto, err := FromDbActToResponse(act)
+		proto, err := FromDbActToResponse(act, getActRatings(r, act.ID), u)
 		if err != nil {
 			return nil, err
 		}
@@ -17,20 +21,45 @@ func FromDbActListToResponse(a []db.Act) (*pb.ListActsResponse, error) {
 		acts = append(acts, proto)
 	}
 
+	sort.Slice(acts, func(i, j int) bool {
+		return util.ManyRatingsSum(acts[i].Ratings) > util.ManyRatingsSum(acts[j].Ratings)
+	})
+
 	return &pb.ListActsResponse{Acts: acts}, nil
 }
 
-func FromDbActToResponse(a db.Act) (*pb.ActResponse, error) {
+func getActRatings(r []db.Rating, actID pgtype.UUID) []db.Rating {
+	var ratings []db.Rating
+	for _, rating := range r {
+		if rating.ActID == actID {
+			ratings = append(ratings, rating)
+		}
+	}
+
+	return ratings
+}
+
+func FromDbActToResponse(a db.Act, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
 		return nil, err
 	}
+
+	ratingListResponse, err := FromDbRatingListToResponse(r, u)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(ratingListResponse.Ratings, func(i, j int) bool {
+		return util.RatingSum(ratingListResponse.Ratings[i]) > util.RatingSum(ratingListResponse.Ratings[j])
+	})
 
 	return &pb.ActResponse{
 		Id:         id,
 		ArtistName: a.ArtistName,
 		SongName:   a.SongName,
 		ImageUrl:   a.ImageUrl,
+		Ratings:    ratingListResponse.Ratings,
 		CreatedAt:  fromDbToProtoTimestamp(a.CreatedAt),
 		UpdatedAt:  fromDbToProtoTimestamp(a.UpdatedAt),
 	}, nil

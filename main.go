@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
@@ -31,23 +32,32 @@ func main() {
 	defer connPool.Close()
 
 	logger := zerolog.New(os.Stdout)
-	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogStatus:  true,
-		LogLatency: true,
-		LogMethod:  true,
-		LogURI:     true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			logger.Info().
-				Timestamp().
-				Int("status", v.Status).
-				Dur("latency", v.Latency).
-				Str("method", v.Method).
-				Str("URI", v.URI).
-				Msg("request")
+	e.Use(
+		middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
+		}),
+		authz.RequestAuthorizer(connPool),
+		middleware.Recover(),
+		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+			LogStatus:  true,
+			LogLatency: true,
+			LogMethod:  true,
+			LogURI:     true,
+			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+				logger.Info().
+					Timestamp().
+					Int("status", v.Status).
+					Dur("latency", v.Latency).
+					Str("method", v.Method).
+					Str("URI", v.URI).
+					Msg("request")
 
-			return nil
-		},
-	}), authz.RequestAuthorizer(connPool))
+				return nil
+			},
+			HandleError: true,
+		}),
+	)
 
 	handler.RegisterHandlerRoutes(e, connPool)
 

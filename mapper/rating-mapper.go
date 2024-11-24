@@ -6,11 +6,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func FromDbRatingListToResponse(r []db.Rating) (*pb.ListRatingsResponse, error) {
+func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResponse, error) {
 	var ratings []*pb.RatingResponse
 
 	for _, rating := range r {
-		proto, err := FromDbRatingToResponse(rating)
+		user := getRatingUser(u, rating.UserID)
+
+		proto, err := FromDbRatingToResponse(rating, user)
 		if err != nil {
 			return nil, err
 		}
@@ -21,7 +23,21 @@ func FromDbRatingListToResponse(r []db.Rating) (*pb.ListRatingsResponse, error) 
 	return &pb.ListRatingsResponse{Ratings: ratings}, nil
 }
 
-func FromDbRatingToResponse(r db.Rating) (*pb.RatingResponse, error) {
+func getRatingUser(u []db.User, userId pgtype.UUID) *db.User {
+	if len(u) == 0 {
+		return nil
+	}
+
+	for _, user := range u {
+		if user.ID == userId {
+			return &user
+		}
+	}
+
+	return nil
+}
+
+func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error) {
 	id, err := FromDbToProtoId(r.ID)
 	if err != nil {
 		return nil, err
@@ -37,21 +53,24 @@ func FromDbRatingToResponse(r db.Rating) (*pb.RatingResponse, error) {
 		return nil, err
 	}
 
-	userId, err := FromDbToProtoId(r.UserID)
-	if err != nil {
-		return nil, err
+	var userResponse *pb.UserResponse
+	if u != nil {
+		userResponse, err = FromDbUserToResponse(*u)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &pb.RatingResponse{
 		Id:            id,
 		CompetitionId: competitionId,
 		ActId:         actId,
-		UserId:        userId,
 		Song:          r.Song.Int32,
 		Singing:       r.Singing.Int32,
 		Show:          r.Show.Int32,
 		Looks:         r.Looks.Int32,
 		Clothes:       r.Clothes.Int32,
+		User:          userResponse,
 		CreatedAt:     fromDbToProtoTimestamp(r.CreatedAt),
 		UpdatedAt:     fromDbToProtoTimestamp(r.UpdatedAt),
 	}, nil

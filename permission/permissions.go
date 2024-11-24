@@ -1,7 +1,8 @@
 package permission
 
 const (
-	WriteCompetitions = "write:competition"
-	WriteActs         = "write:acts"
-	WriteUsers        = "write:users"
+	WriteCompetitions   = "write:competition"
+	WriteActs           = "write:acts"
+	WriteUsers          = "write:users"
+	WriteParticipations = "write:participations"
 )

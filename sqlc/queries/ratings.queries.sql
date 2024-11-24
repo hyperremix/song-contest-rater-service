@@ -10,6 +10,9 @@ SELECT * FROM ratings WHERE user_id = $1;
 -- name: ListRatingsByActId :many
 SELECT * FROM ratings WHERE act_id = $1;
 
+-- name: ListRatingsByCompetitionAndAcId :many
+SELECT * FROM ratings WHERE competition_id = $1 AND act_id = $2;
+
 -- name: GetRatingById :one
 SELECT * FROM ratings WHERE id = $1 LIMIT 1;
 

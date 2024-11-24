@@ -38,40 +38,15 @@ func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, err
 	}, nil
 }
 
-func FromDbToCompetitionWithRatingsActsAndUsersResponse(c db.Competition, ratings []db.Rating, acts []db.Act, users []db.User) (*pb.CompetitionResponse, error) {
+func FromDbToCompetitionWithActsAndUsersResponse(c db.Competition, ratings []db.Rating, acts []db.Act, users []db.User) (*pb.CompetitionResponse, error) {
 	competition, err := FromDbCompetitionToResponse(c)
 	if err != nil {
 		return nil, err
 	}
 
-	var ratingsResponse []*pb.RatingResponse
-	for _, rating := range ratings {
-		ratingResponse, err := FromDbRatingToResponse(rating)
-		if err != nil {
-			return nil, err
-		}
-
-		ratingsResponse = append(ratingsResponse, ratingResponse)
-	}
-
-	var actsResponse []*pb.ActResponse
-	for _, act := range acts {
-		actResponse, err := FromDbActToResponse(act)
-		if err != nil {
-			return nil, err
-		}
-
-		actsResponse = append(actsResponse, actResponse)
-	}
-
-	var usersResponse []*pb.UserResponse
-	for _, user := range users {
-		userResponse, err := FromDbUserToResponse(user)
-		if err != nil {
-			return nil, err
-		}
-
-		usersResponse = append(usersResponse, userResponse)
+	actListResponse, err := FromDbActListToResponse(acts, ratings, users)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.CompetitionResponse{
@@ -83,9 +58,7 @@ func FromDbToCompetitionWithRatingsActsAndUsersResponse(c db.Competition, rating
 		ImageUrl:    competition.ImageUrl,
 		CreatedAt:   competition.CreatedAt,
 		UpdatedAt:   competition.UpdatedAt,
-		Ratings:     ratingsResponse,
-		Acts:        actsResponse,
-		Users:       usersResponse,
+		Acts:        actListResponse.Acts,
 	}, nil
 }
 

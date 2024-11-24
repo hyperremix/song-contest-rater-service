@@ -85,7 +85,7 @@ func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbToCompetitionWithRatingsActsAndUsersResponse(competition, ratings, acts, users)
+		response, err := mapper.FromDbToCompetitionWithActsAndUsersResponse(competition, ratings, acts, users)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		return echoCtx.JSON(http.StatusOK, response)
+		return echoCtx.JSON(http.StatusCreated, response)
 	}
 }
 

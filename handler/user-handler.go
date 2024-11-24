@@ -15,6 +15,7 @@ import (
 func registerUserRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
 	e.GET("/users", listUsers(connPool))
 	e.GET("/users/:id", getUser(connPool))
+	e.GET("/users/me", getAuthUser(connPool))
 	e.POST("/users", createUser(connPool))
 	e.PUT("/users/:id", updateUser(connPool))
 	e.DELETE("/users/:id", deleteUser(connPool))
@@ -80,6 +81,32 @@ func getUser(connPool *pgxpool.Pool) echo.HandlerFunc {
 	}
 }
 
+func getAuthUser(connPool *pgxpool.Pool) echo.HandlerFunc {
+	return func(echoCtx echo.Context) error {
+		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
+		ctx := echoCtx.Request().Context()
+		conn, err := connPool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		defer conn.Release()
+
+		queries := db.New(conn)
+
+		user, err := queries.GetUserBySub(ctx, authUser.Sub)
+		if err != nil {
+			return err
+		}
+
+		response, err := mapper.FromDbUserToResponse(user)
+		if err != nil {
+			return err
+		}
+
+		return echoCtx.JSON(http.StatusOK, response)
+	}
+}
+
 func createUser(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
@@ -112,7 +139,7 @@ func createUser(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		return echoCtx.JSON(http.StatusOK, response)
+		return echoCtx.JSON(http.StatusCreated, response)
 	}
 }
 

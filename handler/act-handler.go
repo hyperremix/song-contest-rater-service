@@ -15,6 +15,7 @@ import (
 func registerActRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
 	e.GET("/acts", listActs(connPool))
 	e.GET("/acts/:id", getAct(connPool))
+	e.GET("/competitions/:competitionId/acts/:id", getCompetitionAct(connPool))
 	e.POST("/acts", createAct(connPool))
 	e.PUT("/acts/:id", updateAct(connPool))
 	e.DELETE("/acts/:id", deleteAct(connPool))
@@ -36,7 +37,7 @@ func listActs(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbActListToResponse(acts)
+		response, err := mapper.FromDbActListToResponse(acts, make([]db.Rating, 0), make([]db.User, 0))
 		if err != nil {
 			return err
 		}
@@ -71,7 +72,72 @@ func getAct(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbActToResponse(act)
+		ratings, err := queries.ListRatingsByActId(ctx, act.ID)
+		if err != nil {
+			return err
+		}
+
+		users, err := queries.ListUsersByActId(ctx, act.ID)
+		if err != nil {
+			return err
+		}
+
+		response, err := mapper.FromDbActToResponse(act, ratings, users)
+		if err != nil {
+			return err
+		}
+
+		return echoCtx.JSON(http.StatusOK, response)
+	}
+}
+
+type competitionActRequest struct {
+	CompetitionId string `param:"competitionId"`
+	Id            string `param:"id"`
+}
+
+func getCompetitionAct(connPool *pgxpool.Pool) echo.HandlerFunc {
+	return func(echoCtx echo.Context) error {
+		ctx := echoCtx.Request().Context()
+		conn, err := connPool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		defer conn.Release()
+
+		queries := db.New(conn)
+
+		var request competitionActRequest
+		if err := echoCtx.Bind(&request); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		}
+
+		id, err := mapper.FromProtoToDbId(request.Id)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		}
+
+		competitionId, err := mapper.FromProtoToDbId(request.CompetitionId)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		}
+
+		act, err := queries.GetActById(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		ratings, err := queries.ListRatingsByCompetitionAndAcId(ctx, db.ListRatingsByCompetitionAndAcIdParams{CompetitionID: competitionId, ActID: act.ID})
+		if err != nil {
+			return err
+		}
+
+		users, err := queries.ListUsersByActId(ctx, act.ID)
+		if err != nil {
+			return err
+		}
+
+		response, err := mapper.FromDbActToResponse(act, ratings, users)
 		if err != nil {
 			return err
 		}
@@ -111,12 +177,12 @@ func createAct(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbActToResponse(act)
+		response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 		if err != nil {
 			return err
 		}
 
-		return echoCtx.JSON(http.StatusOK, response)
+		return echoCtx.JSON(http.StatusCreated, response)
 	}
 }
 
@@ -160,7 +226,7 @@ func updateAct(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbActToResponse(act)
+		response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 		if err != nil {
 			return err
 		}
@@ -200,7 +266,7 @@ func deleteAct(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbActToResponse(act)
+		response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 		if err != nil {
 			return err
 		}

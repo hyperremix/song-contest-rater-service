@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/hyperremix/song-contest-rater-service/sse"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
@@ -14,4 +15,7 @@ func RegisterHandlerRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
 	registerCompetitionRoutes(e, connPool)
 	registerRatingRoutes(e, connPool)
 	registerUserRoutes(e, connPool)
+	registerParticipationRoutes(e, connPool)
 }
+
+var broker = sse.NewBroker()

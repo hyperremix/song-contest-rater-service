@@ -2,23 +2,26 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/hyperremix/song-contest-rater-service/sse"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 func registerRatingRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
 	e.GET("/ratings", listRatings(connPool))
-	e.GET("/acts/:id/ratings", listActRatings(connPool))
 	e.GET("/users/:id/ratings", listUserRatings(connPool))
 	e.GET("/ratings/:id", getRating(connPool))
 	e.POST("/ratings", createRating(connPool))
 	e.PUT("/ratings/:id", updateRating(connPool))
 	e.DELETE("/ratings/:id", deleteRating(connPool))
+	e.GET("/ratings/events", streamRatings())
 }
 
 func listRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
@@ -37,42 +40,7 @@ func listRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbRatingListToResponse(ratings)
-		if err != nil {
-			return err
-		}
-
-		return echoCtx.JSON(http.StatusOK, response)
-	}
-}
-
-func listActRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
-	return func(echoCtx echo.Context) error {
-		ctx := echoCtx.Request().Context()
-		conn, err := connPool.Acquire(ctx)
-		if err != nil {
-			return err
-		}
-		defer conn.Release()
-
-		queries := db.New(conn)
-
-		var request singleObjectRequest
-		if err := echoCtx.Bind(&request); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
-		}
-
-		actId, err := mapper.FromProtoToDbId(request.Id)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
-		}
-
-		ratings, err := queries.ListRatingsByActId(ctx, actId)
-		if err != nil {
-			return err
-		}
-
-		response, err := mapper.FromDbRatingListToResponse(ratings)
+		response, err := mapper.FromDbRatingListToResponse(ratings, make([]db.User, 0))
 		if err != nil {
 			return err
 		}
@@ -107,7 +75,7 @@ func listUserRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbRatingListToResponse(ratings)
+		response, err := mapper.FromDbRatingListToResponse(ratings, make([]db.User, 0))
 		if err != nil {
 			return err
 		}
@@ -142,7 +110,12 @@ func getRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbRatingToResponse(rating)
+		user, err := queries.GetUserById(ctx, rating.UserID)
+		if err != nil {
+			return err
+		}
+
+		response, err := mapper.FromDbRatingToResponse(rating, &user)
 		if err != nil {
 			return err
 		}
@@ -166,12 +139,12 @@ func createRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.CreateRatingRequest
 		if err := echoCtx.Bind(&request); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
 		insertRatingParams, err := mapper.FromCreateRequestToInsertRating(&request, authUser.UserID)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not map request")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
 		rating, err := queries.InsertRating(ctx, insertRatingParams)
@@ -179,12 +152,24 @@ func createRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbRatingToResponse(rating)
+		response, err := mapper.FromDbRatingToResponse(rating, &authUser.User)
 		if err != nil {
 			return err
 		}
 
-		return echoCtx.JSON(http.StatusOK, response)
+		event, err := sse.NewEvent(sse.EventOptions{
+			ID:    response.Id,
+			Event: "createRating",
+			Data:  response,
+			Retry: 10000,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		broker.BroadcastEvent(event)
+		return echoCtx.JSON(http.StatusCreated, response)
 	}
 }
 
@@ -202,25 +187,25 @@ func updateRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.UpdateRatingRequest
 		if err := echoCtx.Bind(&request); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+			log.Error().Err(err).Msg("could not bind request")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
-		var params singleObjectRequest
-		if err := echoCtx.Bind(&params); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
-		}
+		paramId := echoCtx.Param("id")
 
-		if params.Id != request.Id {
+		if paramId != request.Id {
 			return echo.NewHTTPError(http.StatusBadRequest, "id mismatch")
 		}
 
 		id, err := mapper.FromProtoToDbId(request.Id)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+			log.Error().Err(err).Msg("could not bind id")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
 		existingRating, err := queries.GetRatingById(ctx, id)
 		if err != nil {
+			log.Error().Err(err).Msg("could not get rating")
 			return err
 		}
 
@@ -230,19 +215,34 @@ func updateRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		updateRatingParams, err := mapper.FromUpdateRequestToUpdateRating(&request)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not map request")
+			log.Error().Err(err).Msg("could not bind update params")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
 		rating, err := queries.UpdateRating(ctx, updateRatingParams)
 		if err != nil {
+			log.Error().Err(err).Msg("could not update rating")
 			return err
 		}
 
-		response, err := mapper.FromDbRatingToResponse(rating)
+		response, err := mapper.FromDbRatingToResponse(rating, &authUser.User)
+		if err != nil {
+			log.Error().Err(err).Msg("could not map rating")
+			return err
+		}
+
+		event, err := sse.NewEvent(sse.EventOptions{
+			ID:    response.Id,
+			Event: "updateRating",
+			Data:  response,
+			Retry: 10000,
+		})
+
 		if err != nil {
 			return err
 		}
 
+		broker.BroadcastEvent(event)
 		return echoCtx.JSON(http.StatusOK, response)
 	}
 }
@@ -283,11 +283,57 @@ func deleteRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return err
 		}
 
-		response, err := mapper.FromDbRatingToResponse(rating)
+		response, err := mapper.FromDbRatingToResponse(rating, nil)
 		if err != nil {
 			return err
 		}
 
+		event, err := sse.NewEvent(sse.EventOptions{
+			ID:    response.Id,
+			Event: "deleteRating",
+			Data:  response,
+			Retry: 10000,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		broker.BroadcastEvent(event)
 		return echoCtx.JSON(http.StatusOK, response)
+	}
+}
+
+func streamRatings() echo.HandlerFunc {
+	return func(echoCtx echo.Context) error {
+		echoCtx.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
+		echoCtx.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
+		echoCtx.Response().Header().Set(echo.HeaderConnection, "keep-alive")
+		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
+
+		ticker := time.NewTicker(15 * time.Second)
+		ch := make(chan sse.Event)
+		broker.AddUserChan(authUser.UserID, ch)
+
+		defer ticker.Stop()
+		defer broker.RemoveUserChan(authUser.UserID, ch)
+		for {
+			select {
+			case <-echoCtx.Request().Context().Done():
+				return nil
+			case e := <-ch:
+				if err := e.MarshalTo(echoCtx.Response().Writer); err != nil {
+					return err
+				}
+				echoCtx.Response().Flush()
+			case <-ticker.C:
+				event := sse.Event{
+					Event:   []byte("ping"),
+					Retry:   []byte("10000"),
+					Comment: []byte("keep-alive"),
+				}
+				broker.BroadcastEvent(event)
+			}
+		}
 	}
 }
