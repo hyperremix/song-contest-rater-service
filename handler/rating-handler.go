@@ -147,6 +147,15 @@ func createRating(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
+		competition, err := queries.GetCompetitionById(ctx, insertRatingParams.CompetitionID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err)
+		}
+
+		if competition.StartTime.Time.After(time.Now()) {
+			return echo.NewHTTPError(http.StatusBadRequest, "competition has not started yet")
+		}
+
 		rating, err := queries.InsertRating(ctx, insertRatingParams)
 		if err != nil {
 			return err
