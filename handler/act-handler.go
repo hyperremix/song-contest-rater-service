@@ -207,12 +207,9 @@ func updateAct(connPool *pgxpool.Pool) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
 		}
 
-		var params singleObjectRequest
-		if err := echoCtx.Bind(&params); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
-		}
+		paramId := echoCtx.Param("id")
 
-		if request.Id != params.Id {
+		if request.Id != paramId {
 			return echo.NewHTTPError(http.StatusBadRequest, "id in request does not match id in path")
 		}
 

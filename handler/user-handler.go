@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
@@ -8,6 +9,7 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
@@ -94,6 +96,10 @@ func getAuthUser(connPool *pgxpool.Pool) echo.HandlerFunc {
 		queries := db.New(conn)
 
 		user, err := queries.GetUserBySub(ctx, authUser.Sub)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound, "user not found")
+		}
+
 		if err != nil {
 			return err
 		}
@@ -156,15 +162,12 @@ func updateUser(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.UpdateUserRequest
 		if err := echoCtx.Bind(&request); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
-		var params singleObjectRequest
-		if err := echoCtx.Bind(&params); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
-		}
+		paramId := echoCtx.Param("id")
 
-		if request.Id != params.Id {
+		if request.Id != paramId {
 			return echo.NewHTTPError(http.StatusBadRequest, "id mismatch")
 		}
 
