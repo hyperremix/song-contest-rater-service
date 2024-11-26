@@ -1,5 +1,5 @@
 -- name: ListCompetitions :many
-SELECT * FROM competitions;
+SELECT * FROM competitions ORDER BY start_time ASC;
 
 -- name: GetCompetitionById :one
 SELECT * FROM competitions WHERE id = $1 LIMIT 1;
