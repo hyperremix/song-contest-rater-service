@@ -119,10 +119,3 @@ func FromUpdateRequestToUpdateRating(c *pb.UpdateRatingRequest) (db.UpdateRating
 		Clothes: fromInt32ToInt4(c.Clothes),
 	}, nil
 }
-
-func fromInt32ToInt4(i int32) pgtype.Int4 {
-	return pgtype.Int4{
-		Int32: i,
-		Valid: true,
-	}
-}

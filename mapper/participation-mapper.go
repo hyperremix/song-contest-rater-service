@@ -19,7 +19,7 @@ func FromCreateRequestToInsertCompetitionAct(request *pb.CreateParticipationRequ
 		return db.InsertCompetitionActParams{}, echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
 	}
 
-	return db.InsertCompetitionActParams{CompetitionID: competitionId, ActID: actId}, nil
+	return db.InsertCompetitionActParams{CompetitionID: competitionId, ActID: actId, Order: fromInt32ToInt4(request.Order)}, nil
 }
 
 type DeleteParticipationRequest struct {

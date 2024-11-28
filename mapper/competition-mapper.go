@@ -38,13 +38,13 @@ func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, err
 	}, nil
 }
 
-func FromDbToCompetitionWithActsAndUsersResponse(c db.Competition, ratings []db.Rating, acts []db.Act, users []db.User) (*pb.CompetitionResponse, error) {
+func FromDbToCompetitionWithActsAndUsersResponse(c db.Competition, ratings []db.Rating, competitionActs []db.ListActsByCompetitionIdRow, users []db.User) (*pb.CompetitionResponse, error) {
 	competition, err := FromDbCompetitionToResponse(c)
 	if err != nil {
 		return nil, err
 	}
 
-	actListResponse, err := FromDbActListToResponse(acts, ratings, users)
+	actListResponse, err := FromDbOrderedActListToResponse(competitionActs, ratings, users)
 	if err != nil {
 		return nil, err
 	}

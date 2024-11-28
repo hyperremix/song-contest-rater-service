@@ -51,7 +51,7 @@ start:
 ## new-migration: create new tern migration
 .PHONY: new-migration
 new-migration:
-	TERN_MIGRATIONS=sqlc/migrations tern new migration ${name}
+	TERN_MIGRATIONS=sqlc/migrations tern new migration ${NAME}
 
 ## db-migrate: run tern migrations
 .PHONY: db-migrate

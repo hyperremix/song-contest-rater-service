@@ -2,7 +2,7 @@
 SELECT * FROM acts;
 
 -- name: ListActsByCompetitionId :many
-SELECT a.* FROM acts a
+SELECT a.*, ca.order FROM acts a
 JOIN competitions_acts ca ON a.id = ca.act_id
 WHERE ca.competition_id = $1;
 

@@ -44,6 +44,7 @@ func listCompetitions(connPool *pgxpool.Pool) echo.HandlerFunc {
 		return echoCtx.JSON(http.StatusOK, response)
 	}
 }
+
 func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
@@ -93,6 +94,7 @@ func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 		return echoCtx.JSON(http.StatusOK, response)
 	}
 }
+
 func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
@@ -175,6 +177,7 @@ func updateCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 		return echoCtx.JSON(http.StatusOK, response)
 	}
 }
+
 func deleteCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()

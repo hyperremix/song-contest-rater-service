@@ -31,3 +31,10 @@ func fromProtoToDbTimestamp(timestamp *timestamppb.Timestamp) pgtype.Timestamptz
 func fromDbToProtoTimestamp(timestamp pgtype.Timestamptz) *timestamppb.Timestamp {
 	return timestamppb.New(timestamp.Time)
 }
+
+func fromInt32ToInt4(i int32) pgtype.Int4 {
+	return pgtype.Int4{
+		Int32: i,
+		Valid: true,
+	}
+}
