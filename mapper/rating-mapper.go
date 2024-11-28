@@ -70,6 +70,7 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 		Show:          r.Show.Int32,
 		Looks:         r.Looks.Int32,
 		Clothes:       r.Clothes.Int32,
+		Total:         r.Total.Int32,
 		User:          userResponse,
 		CreatedAt:     fromDbToProtoTimestamp(r.CreatedAt),
 		UpdatedAt:     fromDbToProtoTimestamp(r.UpdatedAt),
