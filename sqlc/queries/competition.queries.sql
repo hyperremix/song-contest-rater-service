@@ -6,7 +6,7 @@ SELECT * FROM competitions WHERE id = $1 LIMIT 1;
 
 -- name: InsertCompetition :one
 INSERT INTO
-    competitions (city, country, "description", start_time, image_url)
+    competitions (city, country, heat, start_time, image_url)
 VALUES ($1, $2, $3, $4, $5) RETURNING *;
 
 -- name: UpdateCompetition :one
@@ -15,7 +15,7 @@ UPDATE
 SET
     city = $1,
     country = $2,
-    "description" = $3,
+    heat = $3,
     start_time = $4,
     image_url = $5,
     updated_at = NOW()

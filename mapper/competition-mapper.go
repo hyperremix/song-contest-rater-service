@@ -27,14 +27,14 @@ func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, err
 	}
 
 	return &pb.CompetitionResponse{
-		Id:          id,
-		City:        c.City,
-		Country:     c.Country,
-		Description: c.Description,
-		StartTime:   fromDbToProtoTimestamp(c.StartTime),
-		ImageUrl:    c.ImageUrl,
-		CreatedAt:   fromDbToProtoTimestamp(c.CreatedAt),
-		UpdatedAt:   fromDbToProtoTimestamp(c.UpdatedAt),
+		Id:        id,
+		City:      c.City,
+		Country:   c.Country,
+		Heat:      fromDbHeatToResponse(c.Heat),
+		StartTime: fromDbToProtoTimestamp(c.StartTime),
+		ImageUrl:  c.ImageUrl,
+		CreatedAt: fromDbToProtoTimestamp(c.CreatedAt),
+		UpdatedAt: fromDbToProtoTimestamp(c.UpdatedAt),
 	}, nil
 }
 
@@ -50,25 +50,25 @@ func FromDbToCompetitionWithActsAndUsersResponse(c db.Competition, ratings []db.
 	}
 
 	return &pb.CompetitionResponse{
-		Id:          competition.Id,
-		City:        competition.City,
-		Country:     competition.Country,
-		Description: competition.Description,
-		StartTime:   competition.StartTime,
-		ImageUrl:    competition.ImageUrl,
-		CreatedAt:   competition.CreatedAt,
-		UpdatedAt:   competition.UpdatedAt,
-		Acts:        actListResponse.Acts,
+		Id:        competition.Id,
+		City:      competition.City,
+		Country:   competition.Country,
+		Heat:      competition.Heat,
+		StartTime: competition.StartTime,
+		ImageUrl:  competition.ImageUrl,
+		CreatedAt: competition.CreatedAt,
+		UpdatedAt: competition.UpdatedAt,
+		Acts:      actListResponse.Acts,
 	}, nil
 }
 
 func FromCreateRequestToInsertCompetition(r *pb.CreateCompetitionRequest) db.InsertCompetitionParams {
 	return db.InsertCompetitionParams{
-		City:        r.City,
-		Country:     r.Country,
-		Description: r.Description,
-		StartTime:   fromProtoToDbTimestamp(r.StartTime),
-		ImageUrl:    r.ImageUrl,
+		City:      r.City,
+		Country:   r.Country,
+		Heat:      fromRequestHeatToDb(r.Heat),
+		StartTime: fromProtoToDbTimestamp(r.StartTime),
+		ImageUrl:  r.ImageUrl,
 	}
 }
 
@@ -79,11 +79,11 @@ func FromUpdateRequestToUpdateCompetition(r *pb.UpdateCompetitionRequest) (db.Up
 	}
 
 	return db.UpdateCompetitionParams{
-		ID:          id,
-		City:        r.City,
-		Country:     r.Country,
-		Description: r.Description,
-		StartTime:   fromProtoToDbTimestamp(r.StartTime),
-		ImageUrl:    r.ImageUrl,
+		ID:        id,
+		City:      r.City,
+		Country:   r.Country,
+		Heat:      fromRequestHeatToDb(r.Heat),
+		StartTime: fromProtoToDbTimestamp(r.StartTime),
+		ImageUrl:  r.ImageUrl,
 	}, nil
 }
