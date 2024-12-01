@@ -6,26 +6,21 @@ import (
 	"os"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
-	"github.com/hyperremix/song-contest-rater-service/environment"
 	"github.com/hyperremix/song-contest-rater-service/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal().Msgf("Error loading .env file: %s", err)
-	}
-
+	godotenv.Load(".env")
 	e := echo.New()
 
 	ctx := context.Background()
 
-	connPool, err := pgxpool.New(ctx, environment.DB_CONNECTION_STRING)
+	connPool, err := pgxpool.New(ctx, os.Getenv("SONGCONTESTRATERSERVICE_DB_CONNECTION_STRING"))
 	if err != nil {
 		e.Logger.Fatal(err)
 	}
@@ -61,5 +56,5 @@ func main() {
 
 	handler.RegisterHandlerRoutes(e, connPool)
 
-	e.Logger.Fatal(e.Start("localhost:8080"))
+	e.Logger.Fatal(e.Start(":8080"))
 }

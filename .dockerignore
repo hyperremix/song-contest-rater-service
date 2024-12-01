@@ -1,0 +1,11 @@
+.env
+tmp/
+.github/
+.gitignore
+.git/
+.air.toml
+docker-compose.yml
+Makefile
+sqlc.yaml
+tern.conf
+sqlc/

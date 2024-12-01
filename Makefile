@@ -1,5 +1,9 @@
+-include .env
+export $(shell sed 's/=.*//' .env)
+
 PACKAGES := $(shell go list ./...)
 name := $(shell basename ${PWD})
+SONGCONTESTRATERSERVICE_PROTO_VERSION := v1.0.28
 
 all: help
 
@@ -17,6 +21,11 @@ init:
 	go mod init ${module}
 	go install github.com/cosmtrek/air@latest
 	asdf reshim golang
+
+## env: output environment variables
+.PHONY: env
+env:
+	(env | grep '^SONGCONTESTRATERSERVICE') 2> /dev/null
 
 ## vet: vet code
 .PHONY: vet
@@ -36,12 +45,12 @@ build:
 ## docker-build: build project into a docker container image
 .PHONY: docker-build
 docker-build: test
-	GOPROXY=direct docker buildx build -t ${name} .
+	GOPROXY=direct docker build -t ${name} .
 
 ## docker-run: run project in a container
 .PHONY: docker-run
 docker-run:
-	docker run -it --rm -p 8080:8080 ${name}
+	docker run -it --rm -p 8080:8080 --env-file .env ${name}
 
 ## start: build and run local project
 .PHONY: start
@@ -66,4 +75,14 @@ sqlc-generate:
 ## proto-generate: generate protobuf files
 .PHONY: proto-generate
 proto-generate:
-	 go get github.com/hyperremix/song-contest-rater-proto@$(VERSION) && protoc -I=${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION) --go_out=. --go-grpc_out=. ${GOPATH}/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(VERSION)/*.proto && go mod tidy
+	go get github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION) && protoc -I=$$(go env GOPATH)/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION) --go_out=. --go-grpc_out=. $$(go env GOPATH)/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION)/*.proto && go mod tidy
+
+## fly-db-proxy: start fly.io db proxy
+.PHONY: fly-db-proxy
+fly-db-proxy:
+	fly proxy 5434:5432 -a song-contest-rater-service-db
+
+## deploy: deploy to fly.io
+.PHONY: deploy
+deploy:
+	fly deploy
