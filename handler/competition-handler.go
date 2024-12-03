@@ -99,7 +99,7 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-		if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
+		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
 			return err
 		}
 
@@ -113,7 +113,7 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.CreateCompetitionRequest
 		if err := echoCtx.Bind(&request); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
 		insertParams := mapper.FromCreateRequestToInsertCompetition(&request)
@@ -136,7 +136,7 @@ func updateCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-		if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
+		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
 			return err
 		}
 
@@ -182,7 +182,7 @@ func deleteCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-		if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
+		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
 			return err
 		}
 
