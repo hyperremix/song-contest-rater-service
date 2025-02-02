@@ -10,6 +10,7 @@ import (
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 func registerCompetitionRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
@@ -24,7 +25,9 @@ func listCompetitions(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
 		conn, err := connPool.Acquire(ctx)
+		log := zerolog.Ctx(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not acquire connection")
 			return err
 		}
 		defer conn.Release()
@@ -33,11 +36,13 @@ func listCompetitions(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		competitions, err := queries.ListCompetitions(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not list competitions")
 			return err
 		}
 
 		response, err := mapper.FromDbCompetitionListToResponse(competitions)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map to response")
 			return err
 		}
 
@@ -49,7 +54,9 @@ func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
 		conn, err := connPool.Acquire(ctx)
+		log := zerolog.Ctx(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not acquire connection")
 			return err
 		}
 		defer conn.Release()
@@ -58,36 +65,43 @@ func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request singleObjectRequest
 		if err := echoCtx.Bind(&request); err != nil {
+			log.Error().Err(err).Msg("could not bind request")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
 		}
 
 		id, err := mapper.FromProtoToDbId(request.Id)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map id")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not map id")
 		}
 
 		competition, err := queries.GetCompetitionById(ctx, id)
 		if err != nil {
+			log.Error().Err(err).Msg("could not get competition")
 			return err
 		}
 
 		ratings, err := queries.ListRatingsByCompetitionId(ctx, competition.ID)
 		if err != nil {
+			log.Error().Err(err).Msg("could not get ratings")
 			return err
 		}
 
 		acts, err := queries.ListActsByCompetitionId(ctx, competition.ID)
 		if err != nil {
+			log.Error().Err(err).Msg("could not get acts")
 			return err
 		}
 
 		users, err := queries.ListUsersByCompetitionId(ctx, competition.ID)
 		if err != nil {
+			log.Error().Err(err).Msg("could not get users")
 			return err
 		}
 
 		response, err := mapper.FromDbToCompetitionWithActsAndUsersResponse(competition, ratings, acts, users)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map to response")
 			return err
 		}
 
@@ -98,13 +112,16 @@ func getCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
+		log := zerolog.Ctx(ctx)
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+			log.Error().Err(err).Msg("user does not have permission to write competitions")
 			return err
 		}
 
 		conn, err := connPool.Acquire(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not acquire connection")
 			return err
 		}
 		defer conn.Release()
@@ -113,6 +130,7 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.CreateCompetitionRequest
 		if err := echoCtx.Bind(&request); err != nil {
+			log.Error().Err(err).Msg("could not bind request")
 			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
@@ -120,11 +138,13 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		competition, err := queries.InsertCompetition(ctx, insertParams)
 		if err != nil {
+			log.Error().Err(err).Msg("could not insert competition")
 			return err
 		}
 
 		response, err := mapper.FromDbCompetitionToResponse(competition)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map to response")
 			return err
 		}
 
@@ -135,13 +155,16 @@ func createCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 func updateCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
+		log := zerolog.Ctx(ctx)
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+			log.Error().Err(err).Msg("user does not have permission to write competitions")
 			return err
 		}
 
 		conn, err := connPool.Acquire(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not acquire connection")
 			return err
 		}
 		defer conn.Release()
@@ -150,27 +173,32 @@ func updateCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request pb.UpdateCompetitionRequest
 		if err := echoCtx.Bind(&request); err != nil {
+			log.Error().Err(err).Msg("could not bind request")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
 		}
 
 		paramId := echoCtx.Param("id")
 
 		if request.Id != paramId {
+			log.Error().Msg("id in request does not match id in path")
 			return echo.NewHTTPError(http.StatusBadRequest, "id in request does not match id in path")
 		}
 
 		updateParams, err := mapper.FromUpdateRequestToUpdateCompetition(&request)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map request to update params")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not map request to update params")
 		}
 
 		competition, err := queries.UpdateCompetition(ctx, updateParams)
 		if err != nil {
+			log.Error().Err(err).Msg("could not update competition")
 			return err
 		}
 
 		response, err := mapper.FromDbCompetitionToResponse(competition)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map to response")
 			return err
 		}
 
@@ -181,13 +209,16 @@ func updateCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 func deleteCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 	return func(echoCtx echo.Context) error {
 		ctx := echoCtx.Request().Context()
+		log := zerolog.Ctx(ctx)
 		authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 		if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+			log.Error().Err(err).Msg("user does not have permission to write competitions")
 			return err
 		}
 
 		conn, err := connPool.Acquire(ctx)
 		if err != nil {
+			log.Error().Err(err).Msg("could not acquire connection")
 			return err
 		}
 		defer conn.Release()
@@ -196,21 +227,25 @@ func deleteCompetition(connPool *pgxpool.Pool) echo.HandlerFunc {
 
 		var request singleObjectRequest
 		if err := echoCtx.Bind(&request); err != nil {
+			log.Error().Err(err).Msg("could not bind request")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
 		}
 
 		id, err := mapper.FromProtoToDbId(request.Id)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map id")
 			return echo.NewHTTPError(http.StatusBadRequest, "could not map id")
 		}
 
 		competition, err := queries.DeleteCompetitionById(ctx, id)
 		if err != nil {
+			log.Error().Err(err).Msg("could not delete competition")
 			return err
 		}
 
 		response, err := mapper.FromDbCompetitionToResponse(competition)
 		if err != nil {
+			log.Error().Err(err).Msg("could not map to response")
 			return err
 		}
 
