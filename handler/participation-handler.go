@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func registerParticipationRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
+func registerParticipationRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.POST("/participations", createParticipation(connPool))
 	e.DELETE("/participations", deleteParticipation(connPool))
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func registerCompetitionRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
+func registerCompetitionRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.GET("/competitions", listCompetitions(connPool))
 	e.GET("/competitions/:id", getCompetition(connPool))
 	e.POST("/competitions", createCompetition(connPool))

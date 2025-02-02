@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func registerUserRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
+func registerUserRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.GET("/users", listUsers(connPool))
 	e.GET("/users/:id", getUser(connPool))
 	e.GET("/users/me", getAuthUser(connPool))

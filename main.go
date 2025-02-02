@@ -10,6 +10,7 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
@@ -27,7 +28,11 @@ func main() {
 	}
 	defer connPool.Close()
 
-	e.Use(
+	metricsGroup := e.Group("/metrics")
+	metricsGroup.GET("", echoprometheus.NewHandler())
+
+	mainGroup := e.Group("")
+	mainGroup.Use(
 		middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
 			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
@@ -51,9 +56,10 @@ func main() {
 			},
 			HandleError: true,
 		}),
+		echoprometheus.NewMiddleware("service"),
 	)
 
-	handler.RegisterHandlerRoutes(e, connPool)
+	handler.RegisterHandlerRoutes(mainGroup, connPool)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

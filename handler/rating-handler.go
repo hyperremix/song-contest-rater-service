@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func registerRatingRoutes(e *echo.Echo, connPool *pgxpool.Pool) {
+func registerRatingRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.GET("/ratings", listRatings(connPool))
 	e.GET("/users/:id/ratings", listUserRatings(connPool))
 	e.GET("/ratings/:id", getRating(connPool))
