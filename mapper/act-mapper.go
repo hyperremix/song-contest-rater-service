@@ -15,7 +15,7 @@ func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) (*pb.ListAc
 	for _, act := range a {
 		proto, err := FromDbActToResponse(act, getActRatings(r, act.ID), u)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 
 		acts = append(acts, proto)
@@ -34,7 +34,7 @@ func FromDbOrderedActListToResponse(a []db.ListActsByCompetitionIdRow, r []db.Ra
 	for _, act := range a {
 		proto, err := FromDbOrderedActToResponse(act, getActRatings(r, act.ID), u)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 
 		acts = append(acts, proto)
@@ -61,12 +61,12 @@ func getActRatings(r []db.Rating, actID pgtype.UUID) []db.Rating {
 func FromDbOrderedActToResponse(a db.ListActsByCompetitionIdRow, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	ratingListResponse, err := FromDbRatingListToResponse(r, u)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	sort.Slice(ratingListResponse.Ratings, func(i, j int) bool {
@@ -88,12 +88,12 @@ func FromDbOrderedActToResponse(a db.ListActsByCompetitionIdRow, r []db.Rating, 
 func FromDbActToResponse(a db.Act, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	ratingListResponse, err := FromDbRatingListToResponse(r, u)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	sort.Slice(ratingListResponse.Ratings, func(i, j int) bool {
@@ -122,7 +122,7 @@ func FromCreateRequestToInsertAct(c *pb.CreateActRequest) (db.InsertActParams, e
 func FromUpdateRequestToUpdateAct(c *pb.UpdateActRequest) (db.UpdateActParams, error) {
 	id, err := FromProtoToDbId(c.Id)
 	if err != nil {
-		return db.UpdateActParams{}, err
+		return db.UpdateActParams{}, NewResponseBindingError(err)
 	}
 
 	return db.UpdateActParams{

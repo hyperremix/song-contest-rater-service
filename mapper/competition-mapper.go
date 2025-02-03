@@ -11,7 +11,7 @@ func FromDbCompetitionListToResponse(c []db.Competition) (*pb.ListCompetitionsRe
 	for _, competition := range c {
 		proto, err := FromDbCompetitionToResponse(competition)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 
 		competitions = append(competitions, proto)
@@ -23,7 +23,7 @@ func FromDbCompetitionListToResponse(c []db.Competition) (*pb.ListCompetitionsRe
 func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, error) {
 	id, err := FromDbToProtoId(c.ID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	return &pb.CompetitionResponse{
@@ -41,12 +41,12 @@ func FromDbCompetitionToResponse(c db.Competition) (*pb.CompetitionResponse, err
 func FromDbToCompetitionWithActsAndUsersResponse(c db.Competition, ratings []db.Rating, competitionActs []db.ListActsByCompetitionIdRow, users []db.User) (*pb.CompetitionResponse, error) {
 	competition, err := FromDbCompetitionToResponse(c)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	actListResponse, err := FromDbOrderedActListToResponse(competitionActs, ratings, users)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	return &pb.CompetitionResponse{
@@ -75,7 +75,7 @@ func FromCreateRequestToInsertCompetition(r *pb.CreateCompetitionRequest) db.Ins
 func FromUpdateRequestToUpdateCompetition(r *pb.UpdateCompetitionRequest) (db.UpdateCompetitionParams, error) {
 	id, err := FromProtoToDbId(r.Id)
 	if err != nil {
-		return db.UpdateCompetitionParams{}, err
+		return db.UpdateCompetitionParams{}, NewRequestBindingError(err)
 	}
 
 	return db.UpdateCompetitionParams{

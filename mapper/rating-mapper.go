@@ -14,7 +14,7 @@ func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResp
 
 		proto, err := FromDbRatingToResponse(rating, user)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 
 		ratings = append(ratings, proto)
@@ -40,24 +40,24 @@ func getRatingUser(u []db.User, userId pgtype.UUID) *db.User {
 func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error) {
 	id, err := FromDbToProtoId(r.ID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	competitionId, err := FromDbToProtoId(r.CompetitionID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	actId, err := FromDbToProtoId(r.ActID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	var userResponse *pb.UserResponse
 	if u != nil {
 		userResponse, err = FromDbUserToResponse(*u)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 	}
 
@@ -80,17 +80,17 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest, protoUserId string) (db.InsertRatingParams, error) {
 	competitionId, err := FromProtoToDbId(c.CompetitionId)
 	if err != nil {
-		return db.InsertRatingParams{}, err
+		return db.InsertRatingParams{}, NewRequestBindingError(err)
 	}
 
 	actId, err := FromProtoToDbId(c.ActId)
 	if err != nil {
-		return db.InsertRatingParams{}, err
+		return db.InsertRatingParams{}, NewRequestBindingError(err)
 	}
 
 	userId, err := FromProtoToDbId(protoUserId)
 	if err != nil {
-		return db.InsertRatingParams{}, err
+		return db.InsertRatingParams{}, NewRequestBindingError(err)
 	}
 
 	return db.InsertRatingParams{
@@ -108,7 +108,7 @@ func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest, protoUserId stri
 func FromUpdateRequestToUpdateRating(c *pb.UpdateRatingRequest) (db.UpdateRatingParams, error) {
 	id, err := FromProtoToDbId(c.Id)
 	if err != nil {
-		return db.UpdateRatingParams{}, err
+		return db.UpdateRatingParams{}, NewRequestBindingError(err)
 	}
 
 	return db.UpdateRatingParams{

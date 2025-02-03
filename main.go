@@ -70,9 +70,8 @@ func main() {
 			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
 			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
 		}),
-		authz.RequestAuthorizer(connPool),
-		custommiddleware.RequestLogger(),
 		middleware.Recover(),
+		custommiddleware.IncomingRequestLogger(),
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 			LogStatus:  true,
 			LogLatency: true,
@@ -89,10 +88,13 @@ func main() {
 			},
 			HandleError: true,
 		}),
+		authz.NewRequestAuthorizer(connPool).Authorize(),
+		custommiddleware.ErrorLogger(),
 		echoprometheus.NewMiddleware("service"),
 	)
 
 	handler.RegisterHandlerRoutes(mainGroup, connPool)
+	e.HTTPErrorHandler = handler.ErrorHandler
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

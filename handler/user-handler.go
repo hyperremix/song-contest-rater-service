@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 )
 
 type UserHandler struct {
@@ -40,17 +39,14 @@ func registerUserRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 
 func (h *UserHandler) listUsers(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 
 	users, err := h.queries.ListUsers(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("could not list users")
 		return err
 	}
 
 	response, err := mapper.FromDbUserListToResponse(users)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -59,29 +55,24 @@ func (h *UserHandler) listUsers(echoCtx echo.Context) error {
 
 func (h *UserHandler) getUser(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 
 	var request singleObjectRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map id")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map id")
+		return err
 	}
 
 	user, err := h.queries.GetUserById(ctx, id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get user")
 		return err
 	}
 
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -91,22 +82,18 @@ func (h *UserHandler) getUser(echoCtx echo.Context) error {
 func (h *UserHandler) getAuthUser(echoCtx echo.Context) error {
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 
 	user, err := h.queries.GetUserBySub(ctx, authUser.Sub)
 	if errors.Is(err, pgx.ErrNoRows) {
-		log.Error().Err(err).Msg("user not found")
 		return echo.NewHTTPError(http.StatusNotFound, "user not found")
 	}
 
 	if err != nil {
-		log.Error().Err(err).Msg("could not get user")
 		return err
 	}
 
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -115,30 +102,25 @@ func (h *UserHandler) getAuthUser(echoCtx echo.Context) error {
 
 func (h *UserHandler) createUser(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 
 	var request pb.CreateUserRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	insertParams, err := mapper.FromCreateRequestToInsertUser(&request, authUser.Sub)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map request")
+		return err
 	}
 
 	user, err := h.queries.InsertUser(ctx, insertParams)
 	if err != nil {
-		log.Error().Err(err).Msg("could not insert user")
 		return err
 	}
 
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -147,42 +129,35 @@ func (h *UserHandler) createUser(echoCtx echo.Context) error {
 
 func (h *UserHandler) updateUser(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 
 	var request pb.UpdateUserRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 
 	paramId := echoCtx.Param("id")
 
 	if request.Id != paramId {
-		log.Error().Msg("id mismatch")
 		return echo.NewHTTPError(http.StatusBadRequest, "id mismatch")
 	}
 
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckHasPermission(permission.WriteUsers); err != nil && authUser.UserID != request.Id {
-		log.Error().Err(err).Msg("user does not have permission to write users or is not the user to be updated")
 		return err
 	}
 
 	updateParams, err := mapper.FromUpdateRequestToUpdateUser(&request)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map request to update params")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map request to update params")
+		return err
 	}
 
 	user, err := h.queries.UpdateUser(ctx, updateParams)
 	if err != nil {
-		log.Error().Err(err).Msg("could not update user")
 		return err
 	}
 
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -191,35 +166,29 @@ func (h *UserHandler) updateUser(echoCtx echo.Context) error {
 
 func (h *UserHandler) deleteUser(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 
 	var request singleObjectRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map id")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map id")
+		return err
 	}
 
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckHasPermission(permission.WriteUsers); err != nil && authUser.UserID != request.Id {
-		log.Error().Err(err).Msg("user does not have permission to write users or is not the user to be deleted")
 		return err
 	}
 
 	user, err := h.queries.DeleteUserById(ctx, id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not delete user")
 		return err
 	}
 
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 

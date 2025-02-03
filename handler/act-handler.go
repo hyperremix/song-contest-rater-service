@@ -10,7 +10,6 @@ import (
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 )
 
 type ActHandler struct {
@@ -38,17 +37,13 @@ func registerActRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 
 func (h *ActHandler) listActs(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
-
 	acts, err := h.queries.ListActs(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("could not list acts")
 		return err
 	}
 
 	response, err := mapper.FromDbActListToResponse(acts, make([]db.Rating, 0), make([]db.User, 0))
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -57,41 +52,33 @@ func (h *ActHandler) listActs(echoCtx echo.Context) error {
 
 func (h *ActHandler) getAct(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
-
 	var request singleObjectRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	act, err := h.queries.GetActById(ctx, id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get act")
 		return err
 	}
 
 	ratings, err := h.queries.ListRatingsByActId(ctx, act.ID)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get ratings")
 		return err
 	}
 
 	users, err := h.queries.ListUsersByActId(ctx, act.ID)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get users")
 		return err
 	}
 
 	response, err := mapper.FromDbActToResponse(act, ratings, users)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -105,47 +92,38 @@ type competitionActRequest struct {
 
 func (h *ActHandler) getCompetitionAct(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
-
 	var request competitionActRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	competitionId, err := mapper.FromProtoToDbId(request.CompetitionId)
 	if err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	act, err := h.queries.GetActById(ctx, id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get act")
 		return err
 	}
 
 	ratings, err := h.queries.ListRatingsByCompetitionAndAcId(ctx, db.ListRatingsByCompetitionAndAcIdParams{CompetitionID: competitionId, ActID: act.ID})
 	if err != nil {
-		log.Error().Err(err).Msg("could not get ratings")
 		return err
 	}
 
 	users, err := h.queries.ListUsersByActId(ctx, act.ID)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get users")
 		return err
 	}
 
 	response, err := mapper.FromDbActToResponse(act, ratings, users)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -154,7 +132,6 @@ func (h *ActHandler) getCompetitionAct(echoCtx echo.Context) error {
 
 func (h *ActHandler) createAct(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
 		return err
@@ -162,25 +139,21 @@ func (h *ActHandler) createAct(echoCtx echo.Context) error {
 
 	var request pb.CreateActRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	params, err := mapper.FromCreateRequestToInsertAct(&request)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map request to insert params")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map request to insert params")
+		return err
 	}
 
 	act, err := h.queries.InsertAct(ctx, params)
 	if err != nil {
-		log.Error().Err(err).Msg("could not insert act")
 		return err
 	}
 
 	response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -189,41 +162,34 @@ func (h *ActHandler) createAct(echoCtx echo.Context) error {
 
 func (h *ActHandler) updateAct(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
-		log.Error().Err(err).Msg("user does not have permission to write acts")
 		return err
 	}
 
 	var request pb.UpdateActRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	paramId := echoCtx.Param("id")
 
 	if request.Id != paramId {
-		log.Error().Msg("id in request does not match id in path")
 		return echo.NewHTTPError(http.StatusBadRequest, "id in request does not match id in path")
 	}
 
 	updateParams, err := mapper.FromUpdateRequestToUpdateAct(&request)
 	if err != nil {
-		log.Error().Err(err).Msg("could not map request to update params")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not map request to update params")
+		return err
 	}
 
 	act, err := h.queries.UpdateAct(ctx, updateParams)
 	if err != nil {
-		log.Error().Err(err).Msg("could not update act")
 		return err
 	}
 
 	response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 
@@ -232,34 +198,28 @@ func (h *ActHandler) updateAct(echoCtx echo.Context) error {
 
 func (h *ActHandler) deleteAct(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-	log := zerolog.Ctx(ctx)
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckHasPermission(permission.WriteActs); err != nil {
-		log.Error().Err(err).Msg("user does not have permission to write acts")
 		return err
 	}
 
 	var request singleObjectRequest
 	if err := echoCtx.Bind(&request); err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	id, err := mapper.FromProtoToDbId(request.Id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not bind request")
-		return echo.NewHTTPError(http.StatusBadRequest, "could not bind request")
+		return err
 	}
 
 	act, err := h.queries.DeleteActById(ctx, id)
 	if err != nil {
-		log.Error().Err(err).Msg("could not delete act")
 		return err
 	}
 
 	response, err := mapper.FromDbActToResponse(act, make([]db.Rating, 0), make([]db.User, 0))
 	if err != nil {
-		log.Error().Err(err).Msg("could not map to response")
 		return err
 	}
 

@@ -9,7 +9,7 @@ import (
 func FromDbToProtoId(id pgtype.UUID) (string, error) {
 	uuid, err := uuid.FromBytes(id.Bytes[:])
 	if err != nil {
-		return "", err
+		return "", NewResponseBindingError(err)
 	}
 
 	return uuid.String(), nil
@@ -18,7 +18,7 @@ func FromDbToProtoId(id pgtype.UUID) (string, error) {
 func FromProtoToDbId(id string) (pgtype.UUID, error) {
 	uuid, err := uuid.Parse(id)
 	if err != nil {
-		return pgtype.UUID{}, err
+		return pgtype.UUID{}, NewRequestBindingError(err)
 	}
 
 	return pgtype.UUID{Bytes: uuid, Valid: true}, nil

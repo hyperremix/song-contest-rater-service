@@ -11,7 +11,7 @@ func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
 	for _, user := range u {
 		proto, err := FromDbUserToResponse(user)
 		if err != nil {
-			return nil, err
+			return nil, NewResponseBindingError(err)
 		}
 
 		users = append(users, proto)
@@ -23,7 +23,7 @@ func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
 func FromDbUserToResponse(u db.User) (*pb.UserResponse, error) {
 	id, err := FromDbToProtoId(u.ID)
 	if err != nil {
-		return nil, err
+		return nil, NewResponseBindingError(err)
 	}
 
 	return &pb.UserResponse{
@@ -50,7 +50,7 @@ func FromCreateRequestToInsertUser(c *pb.CreateUserRequest, sub string) (db.Inse
 func FromUpdateRequestToUpdateUser(c *pb.UpdateUserRequest) (db.UpdateUserParams, error) {
 	id, err := FromProtoToDbId(c.Id)
 	if err != nil {
-		return db.UpdateUserParams{}, err
+		return db.UpdateUserParams{}, NewRequestBindingError(err)
 	}
 
 	return db.UpdateUserParams{

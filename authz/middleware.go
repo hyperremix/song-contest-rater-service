@@ -17,6 +17,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type RequestAuthorizer struct {
+	connPool *pgxpool.Pool
+	queries  *db.Queries
+}
+
+func NewRequestAuthorizer(connPool *pgxpool.Pool) *RequestAuthorizer {
+	return &RequestAuthorizer{
+		connPool: connPool,
+		queries:  db.New(connPool),
+	}
+}
+
 type CustomClaims struct {
 	Scope string `json:"scope"`
 }
@@ -27,7 +39,7 @@ func (c CustomClaims) Validate(ctx context.Context) error {
 	return nil
 }
 
-func RequestAuthorizer(connPool *pgxpool.Pool) echo.MiddlewareFunc {
+func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(echoCtx echo.Context) error {
 			ctx := echoCtx.Request().Context()
@@ -41,14 +53,7 @@ func RequestAuthorizer(connPool *pgxpool.Pool) echo.MiddlewareFunc {
 				return err
 			}
 
-			conn, err := connPool.Acquire(ctx)
-			if err != nil {
-				return err
-			}
-			defer conn.Release()
-
-			queries := db.New(conn)
-			user, err := queries.GetUserBySub(ctx, authUser.Sub)
+			user, err := r.queries.GetUserBySub(ctx, authUser.Sub)
 			if err != nil {
 				echoCtx.Set(AuthUserContextKey, authUser)
 			} else {
