@@ -31,6 +31,13 @@ func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
 	config.MaxConnIdleTime = 30 * time.Minute
 	config.HealthCheckPeriod = 1 * time.Minute
 
+	config.ConnConfig.ConnectTimeout = 5 * time.Second
+	config.ConnConfig.RuntimeParams = map[string]string{
+		"statement_timeout":                   "30000",
+		"lock_timeout":                        "10000",
+		"idle_in_transaction_session_timeout": "300000",
+	}
+
 	return pgxpool.NewWithConfig(ctx, config)
 }
 
