@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/custommiddleware"
@@ -16,13 +17,28 @@ import (
 	"github.com/rs/zerolog"
 )
 
+func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(os.Getenv("SONGCONTESTRATERSERVICE_DB_CONNECTION_STRING"))
+	if err != nil {
+		return nil, err
+	}
+
+	config.MaxConns = 25
+	config.MinConns = 5
+	config.MaxConnLifetime = 1 * time.Hour
+	config.MaxConnIdleTime = 30 * time.Minute
+	config.HealthCheckPeriod = 1 * time.Minute
+
+	return pgxpool.NewWithConfig(ctx, config)
+}
+
 func main() {
 	godotenv.Load(".env")
 	e := echo.New()
 
 	ctx := context.Background()
 
-	connPool, err := pgxpool.New(ctx, os.Getenv("SONGCONTESTRATERSERVICE_DB_CONNECTION_STRING"))
+	connPool, err := setupPool(ctx)
 	if err != nil {
 		e.Logger.Fatal(err)
 	}

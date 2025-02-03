@@ -15,8 +15,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type RatingHandler struct {
+	queries *db.Queries
+	pool    *pgxpool.Pool
+}
+
+func NewRatingHandler(pool *pgxpool.Pool) *RatingHandler {
+	return &RatingHandler{
+		queries: db.New(pool),
+		pool:    pool,
+	}
+}
+
 func registerRatingRoutes(e *echo.Group, connPool *pgxpool.Pool) {
-	e.GET("/ratings", listRatings(connPool))
+	h := NewRatingHandler(connPool)
+
+	e.GET("/ratings", h.listRatings)
 	e.GET("/users/:id/ratings", listUserRatings(connPool))
 	e.GET("/ratings/:id", getRating(connPool))
 	e.POST("/ratings", createRating(connPool))
@@ -25,33 +39,23 @@ func registerRatingRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.GET("/ratings/events", streamRatings())
 }
 
-func listRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
-	return func(echoCtx echo.Context) error {
-		ctx := echoCtx.Request().Context()
-		log := zerolog.Ctx(ctx)
-		conn, err := connPool.Acquire(ctx)
-		if err != nil {
-			log.Error().Err(err).Msg("could not acquire connection")
-			return err
-		}
-		defer conn.Release()
+func (h *RatingHandler) listRatings(echoCtx echo.Context) error {
+	ctx := echoCtx.Request().Context()
+	log := zerolog.Ctx(ctx)
 
-		queries := db.New(conn)
-
-		ratings, err := queries.ListRatings(ctx)
-		if err != nil {
-			log.Error().Err(err).Msg("could not list ratings")
-			return err
-		}
-
-		response, err := mapper.FromDbRatingListToResponse(ratings, make([]db.User, 0))
-		if err != nil {
-			log.Error().Err(err).Msg("could not map to response")
-			return err
-		}
-
-		return echoCtx.JSON(http.StatusOK, response)
+	ratings, err := h.queries.ListRatings(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("could not list ratings")
+		return err
 	}
+
+	response, err := mapper.FromDbRatingListToResponse(ratings, make([]db.User, 0))
+	if err != nil {
+		log.Error().Err(err).Msg("could not map to response")
+		return err
+	}
+
+	return echoCtx.JSON(http.StatusOK, response)
 }
 
 func listUserRatings(connPool *pgxpool.Pool) echo.HandlerFunc {
