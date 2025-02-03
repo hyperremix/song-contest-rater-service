@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
@@ -43,6 +45,14 @@ func main() {
 		e.Logger.Fatal(err)
 	}
 	defer connPool.Close()
+
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		connPool.Close()
+	}()
 
 	metricsGroup := e.Group("/metrics")
 	metricsGroup.GET("", echoprometheus.NewHandler())
