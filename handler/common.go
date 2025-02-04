@@ -16,6 +16,7 @@ func RegisterHandlerRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	registerRatingRoutes(e, connPool)
 	registerUserRoutes(e, connPool)
 	registerParticipationRoutes(e, connPool)
+	registerStatRoutes(e, connPool)
 }
 
 var broker = sse.NewBroker()

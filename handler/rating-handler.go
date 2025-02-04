@@ -9,19 +9,22 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/hyperremix/song-contest-rater-service/sse"
+	"github.com/hyperremix/song-contest-rater-service/stat"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
 
 type RatingHandler struct {
-	queries *db.Queries
-	pool    *pgxpool.Pool
+	queries     *db.Queries
+	pool        *pgxpool.Pool
+	statService *stat.Service
 }
 
 func NewRatingHandler(pool *pgxpool.Pool) *RatingHandler {
 	return &RatingHandler{
-		queries: db.New(pool),
-		pool:    pool,
+		queries:     db.New(pool),
+		pool:        pool,
+		statService: stat.NewService(pool),
 	}
 }
 
@@ -154,6 +157,7 @@ func (h *RatingHandler) createRating(echoCtx echo.Context) error {
 	}
 
 	broker.BroadcastEvent(authUser.UserID, event)
+	h.statService.UpsertRatingStats(ctx, response)
 	return echoCtx.JSON(http.StatusCreated, response)
 }
 
