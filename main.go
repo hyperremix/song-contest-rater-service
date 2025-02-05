@@ -70,7 +70,6 @@ func main() {
 			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
 			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
 		}),
-		middleware.Recover(),
 		custommiddleware.IncomingRequestLogger(),
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 			LogStatus:  true,
@@ -91,6 +90,7 @@ func main() {
 		authz.NewRequestAuthorizer(connPool).Authorize(),
 		custommiddleware.ErrorLogger(),
 		echoprometheus.NewMiddleware("service"),
+		middleware.Recover(),
 	)
 
 	handler.RegisterHandlerRoutes(mainGroup, connPool)
