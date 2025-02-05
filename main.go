@@ -36,6 +36,7 @@ func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
 		"statement_timeout":                   "30000",
 		"lock_timeout":                        "10000",
 		"idle_in_transaction_session_timeout": "300000",
+		"search_path":                         "song_contest_rater_service",
 	}
 
 	return pgxpool.NewWithConfig(ctx, config)
@@ -88,7 +89,6 @@ func main() {
 			HandleError: true,
 		}),
 		authz.NewRequestAuthorizer(connPool).Authorize(),
-		custommiddleware.ErrorLogger(),
 		echoprometheus.NewMiddleware("service"),
 		middleware.Recover(),
 	)
