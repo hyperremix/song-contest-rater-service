@@ -2,13 +2,18 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/hyperremix/song-contest-rater-service/s3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -17,12 +22,14 @@ import (
 type UserHandler struct {
 	queries  *db.Queries
 	connPool *pgxpool.Pool
+	s3Client *s3.Client
 }
 
 func NewUserHandler(connPool *pgxpool.Pool) *UserHandler {
 	return &UserHandler{
 		queries:  db.New(connPool),
 		connPool: connPool,
+		s3Client: s3.New(),
 	}
 }
 
@@ -35,6 +42,7 @@ func registerUserRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	e.POST("/users", h.createUser)
 	e.PUT("/users/:id", h.updateUser)
 	e.DELETE("/users/:id", h.deleteUser)
+	e.POST("/users/me/profile-picture-presigned-url", h.getProfilePicturePresignedURL)
 }
 
 func (h *UserHandler) listUsers(echoCtx echo.Context) error {
@@ -190,6 +198,44 @@ func (h *UserHandler) deleteUser(echoCtx echo.Context) error {
 	response, err := mapper.FromDbUserToResponse(user)
 	if err != nil {
 		return err
+	}
+
+	return echoCtx.JSON(http.StatusOK, response)
+}
+
+func (h *UserHandler) getProfilePicturePresignedURL(echoCtx echo.Context) error {
+	ctx := echoCtx.Request().Context()
+	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
+
+	var request pb.GetPresignedURLRequest
+	if err := echoCtx.Bind(&request); err != nil {
+		return err
+	}
+
+	if !strings.HasPrefix(request.ContentType, "image/") {
+		return echo.NewHTTPError(http.StatusBadRequest, "content type must be an image")
+	}
+
+	filename := fmt.Sprintf("%s%d%s", authUser.UserID, time.Now().Unix(), filepath.Ext(request.FileName))
+
+	s3Response, err := h.s3Client.GetPresignedURL(ctx, filename, request.ContentType)
+	if err != nil {
+		return err
+	}
+
+	updateParams, err := mapper.FromProfilePictureToUpdateUserImageUrl(authUser.UserID, s3Response.ImageURL)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.queries.UpdateUserImageUrl(ctx, updateParams)
+	if err != nil {
+		return err
+	}
+
+	response := &pb.GetPresignedURLResponse{
+		PresignedUrl: s3Response.PresignedURL,
+		ImageUrl:     s3Response.ImageURL,
 	}
 
 	return echoCtx.JSON(http.StatusOK, response)

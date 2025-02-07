@@ -36,3 +36,11 @@ WHERE
 
 -- name: DeleteUserById :one
 DELETE FROM users WHERE id = $1 RETURNING *;
+
+-- name: UpdateUserImageUrl :one
+UPDATE users
+SET
+    image_url = $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;

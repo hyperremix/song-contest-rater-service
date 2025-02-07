@@ -60,3 +60,15 @@ func FromUpdateRequestToUpdateUser(c *pb.UpdateUserRequest) (db.UpdateUserParams
 		ImageUrl:  c.ImageUrl,
 	}, nil
 }
+
+func FromProfilePictureToUpdateUserImageUrl(userId string, imageUrl string) (db.UpdateUserImageUrlParams, error) {
+	id, err := FromProtoToDbId(userId)
+	if err != nil {
+		return db.UpdateUserImageUrlParams{}, NewRequestBindingError(err)
+	}
+
+	return db.UpdateUserImageUrlParams{
+		ID:       id,
+		ImageUrl: imageUrl,
+	}, nil
+}

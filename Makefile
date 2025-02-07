@@ -3,7 +3,7 @@ export $(shell sed 's/=.*//' .env)
 
 PACKAGES := $(shell go list ./...)
 name := $(shell basename ${PWD})
-SONGCONTESTRATERSERVICE_PROTO_VERSION := v1.0.28
+SONGCONTESTRATERSERVICE_PROTO_VERSION := v1.0.32
 
 all: help
 
