@@ -6,6 +6,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+func EmptyUserStatsResponse() *pb.UserStatsResponse {
+	return &pb.UserStatsResponse{
+		UserId:        "",
+		UserRatingAvg: 0,
+		TotalRatings:  0,
+		RatingBias:    0,
+		CriticType:    pb.CriticType_CRITIC_TYPE_UNSPECIFIED,
+		CreatedAt:     nil,
+		UpdatedAt:     nil,
+	}
+}
+
+func EmptyGlobalStatsResponse() *pb.GlobalStatsResponse {
+	return &pb.GlobalStatsResponse{
+		GlobalRatingAvg: 0,
+		TotalRatings:    0,
+		CreatedAt:       nil,
+		UpdatedAt:       nil,
+	}
+}
+
 func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat) (*pb.UserStatsResponse, error) {
 	userId, err := FromDbToProtoId(stats.UserID)
 	if err != nil {

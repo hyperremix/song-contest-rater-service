@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 
+	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,21 +27,23 @@ func NewStatHandler(pool *pgxpool.Pool) *StatHandler {
 func registerStatRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	h := NewStatHandler(connPool)
 
-	e.GET("/stats/users/:id", h.getUserStats)
+	e.GET("/stats/users/me", h.getUserStats)
 	e.GET("/stats/global", h.getGlobalStats)
 }
 
 func (h *StatHandler) getUserStats(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
-
-	id := echoCtx.Param("id")
-	userId, err := mapper.FromProtoToDbId(id)
+	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
+	userId, err := mapper.FromProtoToDbId(authUser.UserID)
 	if err != nil {
 		return err
 	}
 
 	userStats, err := h.queries.GetStatsByUserId(ctx, userId)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echoCtx.JSON(http.StatusOK, mapper.EmptyUserStatsResponse())
+		}
 		return err
 	}
 
@@ -60,6 +65,9 @@ func (h *StatHandler) getGlobalStats(echoCtx echo.Context) error {
 
 	globalStats, err := h.queries.GetGlobalStats(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echoCtx.JSON(http.StatusOK, mapper.EmptyGlobalStatsResponse())
+		}
 		return err
 	}
 
