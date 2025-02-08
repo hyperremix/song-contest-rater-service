@@ -157,7 +157,7 @@ func (h *RatingHandler) createRating(echoCtx echo.Context) error {
 	}
 
 	broker.BroadcastEvent(authUser.UserID, event)
-	h.statService.UpsertRatingStats(ctx, response)
+	h.statService.AddRatingToStats(ctx, response)
 	return echoCtx.JSON(http.StatusCreated, response)
 }
 
@@ -215,6 +215,7 @@ func (h *RatingHandler) updateRating(echoCtx echo.Context) error {
 	}
 
 	broker.BroadcastEvent(authUser.UserID, event)
+	h.statService.UpdateRatingInStats(ctx, response)
 	return echoCtx.JSON(http.StatusOK, response)
 }
 
@@ -262,6 +263,7 @@ func (h *RatingHandler) deleteRating(echoCtx echo.Context) error {
 	}
 
 	broker.BroadcastEvent(authUser.UserID, event)
+	h.statService.RemoveRatingFromStats(ctx, response)
 	return echoCtx.JSON(http.StatusOK, response)
 }
 

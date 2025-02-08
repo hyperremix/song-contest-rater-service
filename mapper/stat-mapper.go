@@ -3,6 +3,7 @@ package mapper
 import (
 	"github.com/hyperremix/song-contest-rater-service/db"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat) (*pb.UserStatsResponse, error) {
@@ -66,34 +67,104 @@ func FromRatingToDbGlobalStats(rating *pb.RatingResponse) db.UpsertGlobalStatsPa
 	}
 }
 
-func FromStatsToUpsertUserStats(rating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
-	newRatingCount := userStats.RatingCount.Int32 + 1
-	newRatingAvg, err := fromNumericToFloat64(userStats.RatingAvg)
+func AddToUserStats(newRating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+	newAvg, newCount, err := calculateAddedAverage(
+		userStats.RatingAvg,
+		userStats.RatingCount.Int32,
+		float64(newRating.Total),
+	)
 	if err != nil {
 		return db.UpsertUserStatsParams{}, err
 	}
 
-	newRatingAvg = (newRatingAvg*float64(userStats.RatingCount.Int32) + float64(rating.Total)) / float64(newRatingCount)
-
 	return db.UpsertUserStatsParams{
 		UserID:      userStats.UserID,
-		RatingAvg:   fromFloat64ToNumeric(newRatingAvg),
-		RatingCount: fromInt32ToInt4(newRatingCount),
+		RatingAvg:   newAvg,
+		RatingCount: newCount,
 	}, nil
 }
 
-func FromStatsToUpsertGlobalStats(rating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
-	newRatingCount := globalStats.RatingCount.Int32 + 1
-	newRatingAvg, err := fromNumericToFloat64(globalStats.RatingAvg)
+func UpdateUserStats(newRating *pb.RatingResponse, oldRating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+	newAvg, err := calculateUpdatedAverage(
+		userStats.RatingAvg,
+		userStats.RatingCount.Int32,
+		float64(oldRating.Total),
+		float64(newRating.Total),
+	)
+	if err != nil {
+		return db.UpsertUserStatsParams{}, err
+	}
+
+	return db.UpsertUserStatsParams{
+		UserID:      userStats.UserID,
+		RatingAvg:   newAvg,
+		RatingCount: userStats.RatingCount,
+	}, nil
+}
+
+func RemoveFromUserStats(rating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+	newAvg, newCount, err := calculateRemovedAverage(
+		userStats.RatingAvg,
+		userStats.RatingCount.Int32,
+		float64(rating.Total),
+	)
+	if err != nil {
+		return db.UpsertUserStatsParams{}, err
+	}
+
+	return db.UpsertUserStatsParams{
+		UserID:      userStats.UserID,
+		RatingAvg:   newAvg,
+		RatingCount: newCount,
+	}, nil
+}
+
+func AddToGlobalStats(newRating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+	newAvg, newCount, err := calculateAddedAverage(
+		globalStats.RatingAvg,
+		globalStats.RatingCount.Int32,
+		float64(newRating.Total),
+	)
 	if err != nil {
 		return db.UpsertGlobalStatsParams{}, err
 	}
 
-	newRatingAvg = (newRatingAvg*float64(globalStats.RatingCount.Int32) + float64(rating.Total)) / float64(newRatingCount)
+	return db.UpsertGlobalStatsParams{
+		RatingAvg:   newAvg,
+		RatingCount: newCount,
+	}, nil
+}
+
+func UpdateGlobalStats(newRating *pb.RatingResponse, oldRating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+	newAvg, err := calculateUpdatedAverage(
+		globalStats.RatingAvg,
+		globalStats.RatingCount.Int32,
+		float64(oldRating.Total),
+		float64(newRating.Total),
+	)
+	if err != nil {
+		return db.UpsertGlobalStatsParams{}, err
+	}
 
 	return db.UpsertGlobalStatsParams{
-		RatingAvg:   fromFloat64ToNumeric(newRatingAvg),
-		RatingCount: fromInt32ToInt4(newRatingCount),
+		RatingAvg:   newAvg,
+		RatingCount: globalStats.RatingCount,
+	}, nil
+}
+
+func RemoveFromGlobalStats(rating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+	newAvg, newCount, err := calculateRemovedAverage(
+		globalStats.RatingAvg,
+		globalStats.RatingCount.Int32,
+		float64(rating.Total),
+	)
+	if err != nil {
+		return db.UpsertGlobalStatsParams{}, err
+	}
+
+	return db.UpsertGlobalStatsParams{
+		RatingAvg:   newAvg,
+		RatingCount: newCount,
 	}, nil
 }
 
@@ -110,4 +181,34 @@ func fromRatingBiasToCriticType(ratingBias float64) pb.CriticType {
 	default:
 		return pb.CriticType_CRITIC_TYPE_BALANCED
 	}
+}
+
+func calculateAddedAverage(currentAvg pgtype.Numeric, count int32, newValue float64) (pgtype.Numeric, pgtype.Int4, error) {
+	currentAvgFloat, err := fromNumericToFloat64(currentAvg)
+	if err != nil {
+		return pgtype.Numeric{}, pgtype.Int4{}, err
+	}
+
+	newCount := count + 1
+	newAvg := (currentAvgFloat*float64(count) + newValue) / float64(newCount)
+	return fromFloat64ToNumeric(newAvg), fromInt32ToInt4(newCount), nil
+}
+
+func calculateUpdatedAverage(dbCurrentAvg pgtype.Numeric, count int32, oldValue, newValue float64) (pgtype.Numeric, error) {
+	currentAvg, err := fromNumericToFloat64(dbCurrentAvg)
+	if err != nil {
+		return pgtype.Numeric{}, err
+	}
+
+	return fromFloat64ToNumeric((currentAvg*float64(count) - oldValue + newValue) / float64(count)), nil
+}
+
+func calculateRemovedAverage(dbCurrentAvg pgtype.Numeric, count int32, valueToRemove float64) (pgtype.Numeric, pgtype.Int4, error) {
+	currentAvg, err := fromNumericToFloat64(dbCurrentAvg)
+	if err != nil {
+		return pgtype.Numeric{}, pgtype.Int4{}, err
+	}
+
+	newCount := count - 1
+	return fromFloat64ToNumeric((currentAvg*float64(count) - valueToRemove) / float64(newCount)), fromInt32ToInt4(newCount), nil
 }
