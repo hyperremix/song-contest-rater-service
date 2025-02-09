@@ -70,10 +70,14 @@ func (b *Broker) RemoveUserChan(id string, ch chan Event) {
 	}
 }
 
-// Broadcast sends a message to all users.
-func (b *Broker) BroadcastEvent(event Event) {
+// BroadcastEvent sends a message to all users except the source user
+func (b *Broker) BroadcastEvent(sourceUserId string, event Event) {
 	b.actions <- func() {
-		for _, chs := range b.users {
+		for userId, chs := range b.users {
+			if userId == sourceUserId {
+				continue
+			}
+
 			for _, ch := range chs {
 				ch <- event
 			}

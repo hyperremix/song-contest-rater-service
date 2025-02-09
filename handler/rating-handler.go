@@ -153,7 +153,7 @@ func (h *RatingHandler) createRating(echoCtx echo.Context) error {
 		return err
 	}
 
-	broker.BroadcastEvent(event)
+	broker.BroadcastEvent(authUser.UserID, event)
 	return echoCtx.JSON(http.StatusCreated, response)
 }
 
@@ -210,7 +210,7 @@ func (h *RatingHandler) updateRating(echoCtx echo.Context) error {
 		return err
 	}
 
-	broker.BroadcastEvent(event)
+	broker.BroadcastEvent(authUser.UserID, event)
 	return echoCtx.JSON(http.StatusOK, response)
 }
 
@@ -257,7 +257,7 @@ func (h *RatingHandler) deleteRating(echoCtx echo.Context) error {
 		return err
 	}
 
-	broker.BroadcastEvent(event)
+	broker.BroadcastEvent(authUser.UserID, event)
 	return echoCtx.JSON(http.StatusOK, response)
 }
 
@@ -288,7 +288,7 @@ func (h *RatingHandler) streamRatings(echoCtx echo.Context) error {
 				Retry:   []byte("10000"),
 				Comment: []byte("keep-alive"),
 			}
-			broker.BroadcastEvent(event)
+			broker.BroadcastEvent(authUser.UserID, event)
 		}
 	}
 }
