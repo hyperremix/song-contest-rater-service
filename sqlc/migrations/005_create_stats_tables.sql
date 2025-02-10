@@ -1,6 +1,6 @@
 CREATE TABLE user_stats (
     user_id UUID PRIMARY KEY,
-    rating_avg DECIMAL(3,2),
+    rating_avg DECIMAL(4,2),
     rating_count INT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -9,7 +9,7 @@ CREATE TABLE user_stats (
 
 CREATE TABLE global_stats (
     id BOOLEAN PRIMARY KEY DEFAULT TRUE,
-    rating_avg DECIMAL(3,2),
+    rating_avg DECIMAL(4,2),
     rating_count INT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -19,4 +19,4 @@ CREATE TABLE global_stats (
 ---- create above / drop below ----
 
 DROP TABLE IF EXISTS user_stats;
-DROP TABLE IF EXISTS global_stats; 
+DROP TABLE IF EXISTS global_stats;

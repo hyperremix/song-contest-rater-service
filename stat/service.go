@@ -28,7 +28,13 @@ func (s *Service) AddRatingToStats(ctx context.Context, rating *pb.RatingRespons
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
 
 	queries := s.queries.WithTx(tx)
 
@@ -45,7 +51,13 @@ func (s *Service) UpdateRatingInStats(ctx context.Context, rating *pb.RatingResp
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
 
 	queries := s.queries.WithTx(tx)
 
@@ -62,7 +74,13 @@ func (s *Service) RemoveRatingFromStats(ctx context.Context, rating *pb.RatingRe
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
 
 	queries := s.queries.WithTx(tx)
 

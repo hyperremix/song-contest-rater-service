@@ -76,14 +76,14 @@ func FromRatingToDbUserStats(rating *pb.RatingResponse) db.UpsertUserStatsParams
 
 	return db.UpsertUserStatsParams{
 		UserID:      userId,
-		RatingAvg:   fromFloat64ToNumeric(float64(rating.Total) / 5),
+		RatingAvg:   fromFloat64ToNumeric(float64(rating.Total)),
 		RatingCount: fromInt32ToInt4(1),
 	}
 }
 
 func FromRatingToDbGlobalStats(rating *pb.RatingResponse) db.UpsertGlobalStatsParams {
 	return db.UpsertGlobalStatsParams{
-		RatingAvg:   fromFloat64ToNumeric(float64(rating.Total) / 5),
+		RatingAvg:   fromFloat64ToNumeric(float64(rating.Total)),
 		RatingCount: fromInt32ToInt4(1),
 	}
 }
@@ -191,14 +191,14 @@ func RemoveFromGlobalStats(rating *pb.RatingResponse, globalStats db.GlobalStat)
 
 func fromRatingBiasToCriticType(ratingBias float64) pb.CriticType {
 	switch {
-	case ratingBias <= -1.0:
+	case ratingBias <= -6.0:
 		return pb.CriticType_CRITIC_TYPE_HARSH
-	case ratingBias <= -0.5:
+	case ratingBias <= -2.0:
 		return pb.CriticType_CRITIC_TYPE_SLIGHTLY_CRITICAL
-	case ratingBias >= 1.0:
-		return pb.CriticType_CRITIC_TYPE_GENEROUS
-	case ratingBias >= 0.5:
+	case ratingBias >= 2.0:
 		return pb.CriticType_CRITIC_TYPE_EASY_TO_PLEASE
+	case ratingBias >= 6.0:
+		return pb.CriticType_CRITIC_TYPE_GENEROUS
 	default:
 		return pb.CriticType_CRITIC_TYPE_BALANCED
 	}
