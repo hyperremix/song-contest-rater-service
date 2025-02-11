@@ -23,7 +23,7 @@ SET
     image_url = $3,
     updated_at = NOW()
 WHERE
-    id = $4 AND deleted_at IS NULL RETURNING *;
+    id = $4 RETURNING *;
 
 -- name: DeleteActById :one
 DELETE FROM acts WHERE id = $1 RETURNING *;
