@@ -27,8 +27,35 @@ func NewStatHandler(pool *pgxpool.Pool) *StatHandler {
 func registerStatRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	h := NewStatHandler(connPool)
 
+	e.GET("/stats/users", h.listUserStats)
 	e.GET("/stats/users/me", h.getUserStats)
 	e.GET("/stats/global", h.getGlobalStats)
+}
+
+func (h *StatHandler) listUserStats(echoCtx echo.Context) error {
+	ctx := echoCtx.Request().Context()
+
+	usersStats, err := h.queries.ListUserStats(ctx)
+	if err != nil {
+		return err
+	}
+
+	globalStats, err := h.queries.GetGlobalStats(ctx)
+	if err != nil {
+		return err
+	}
+
+	users, err := h.queries.ListUsers(ctx)
+	if err != nil {
+		return err
+	}
+
+	response, err := mapper.FromDbUserStatListToResponse(usersStats, globalStats, users)
+	if err != nil {
+		return err
+	}
+
+	return echoCtx.JSON(http.StatusOK, response)
 }
 
 func (h *StatHandler) getUserStats(echoCtx echo.Context) error {
@@ -52,7 +79,7 @@ func (h *StatHandler) getUserStats(echoCtx echo.Context) error {
 		return err
 	}
 
-	response, err := mapper.FromDbUserStatsToResponse(userStats, globalStats)
+	response, err := mapper.FromDbUserStatsToResponse(userStats, globalStats, &authUser.User)
 	if err != nil {
 		return err
 	}

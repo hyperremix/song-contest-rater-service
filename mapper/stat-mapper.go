@@ -8,11 +8,11 @@ import (
 
 func EmptyUserStatsResponse() *pb.UserStatsResponse {
 	return &pb.UserStatsResponse{
-		UserId:        "",
 		UserRatingAvg: 0,
 		TotalRatings:  0,
 		RatingBias:    0,
 		CriticType:    pb.CriticType_CRITIC_TYPE_UNSPECIFIED,
+		User:          nil,
 		CreatedAt:     nil,
 		UpdatedAt:     nil,
 	}
@@ -27,12 +27,37 @@ func EmptyGlobalStatsResponse() *pb.GlobalStatsResponse {
 	}
 }
 
-func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat) (*pb.UserStatsResponse, error) {
-	userId, err := FromDbToProtoId(stats.UserID)
-	if err != nil {
-		return nil, NewResponseBindingError(err)
+func FromDbUserStatListToResponse(stats []db.UserStat, globalStats db.GlobalStat, users []db.User) (*pb.ListUserStatsResponse, error) {
+	response := make([]*pb.UserStatsResponse, len(stats))
+	for i, stat := range stats {
+		user := getStatUser(users, stat.UserID)
+
+		proto, err := FromDbUserStatsToResponse(stat, globalStats, user)
+		if err != nil {
+			return nil, NewResponseBindingError(err)
+		}
+
+		response[i] = proto
 	}
 
+	return &pb.ListUserStatsResponse{Stats: response}, nil
+}
+
+func getStatUser(u []db.User, userId pgtype.UUID) *db.User {
+	if len(u) == 0 {
+		return nil
+	}
+
+	for _, user := range u {
+		if user.ID == userId {
+			return &user
+		}
+	}
+
+	return nil
+}
+
+func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, user *db.User) (*pb.UserStatsResponse, error) {
 	userRatingAvg, err := fromNumericToFloat64(stats.RatingAvg)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
@@ -43,12 +68,20 @@ func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat) (*p
 		return nil, NewResponseBindingError(err)
 	}
 
+	var userResponse *pb.UserResponse
+	if user != nil {
+		userResponse, err = FromDbUserToResponse(*user)
+		if err != nil {
+			return nil, NewResponseBindingError(err)
+		}
+	}
+
 	return &pb.UserStatsResponse{
-		UserId:        userId,
 		UserRatingAvg: userRatingAvg,
 		TotalRatings:  stats.RatingCount.Int32,
 		RatingBias:    globalRatingAvg - userRatingAvg,
 		CriticType:    fromRatingBiasToCriticType(globalRatingAvg - userRatingAvg),
+		User:          userResponse,
 		CreatedAt:     fromDbToProtoTimestamp(stats.CreatedAt),
 		UpdatedAt:     fromDbToProtoTimestamp(stats.UpdatedAt),
 	}, nil

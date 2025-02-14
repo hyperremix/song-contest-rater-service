@@ -3,14 +3,13 @@ package mapper
 import (
 	"github.com/hyperremix/song-contest-rater-service/db"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResponse, error) {
 	var ratings []*pb.RatingResponse
 
 	for _, rating := range r {
-		user := getRatingUser(u, rating.UserID)
+		user := getUser(u, rating.UserID)
 
 		proto, err := FromDbRatingToResponse(rating, user)
 		if err != nil {
@@ -21,20 +20,6 @@ func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResp
 	}
 
 	return &pb.ListRatingsResponse{Ratings: ratings}, nil
-}
-
-func getRatingUser(u []db.User, userId pgtype.UUID) *db.User {
-	if len(u) == 0 {
-		return nil
-	}
-
-	for _, user := range u {
-		if user.ID == userId {
-			return &user
-		}
-	}
-
-	return nil
 }
 
 func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error) {

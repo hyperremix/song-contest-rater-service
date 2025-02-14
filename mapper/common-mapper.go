@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -59,4 +60,18 @@ func fromFloat64ToNumeric(f float64) pgtype.Numeric {
 	}
 
 	return x
+}
+
+func getUser(users []db.User, userId pgtype.UUID) *db.User {
+	if len(users) == 0 {
+		return nil
+	}
+
+	for _, user := range users {
+		if user.ID == userId {
+			return &user
+		}
+	}
+
+	return nil
 }
