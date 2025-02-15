@@ -11,7 +11,7 @@ INSERT INTO global_stats (
 )
 ON CONFLICT (id) DO UPDATE
 SET 
-    rating_avg = $2,
-    rating_count = $3,
+    rating_avg = $1,
+    rating_count = $2,
     updated_at = NOW()
 RETURNING *;
