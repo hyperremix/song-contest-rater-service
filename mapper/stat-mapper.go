@@ -79,8 +79,8 @@ func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, use
 	return &pb.UserStatsResponse{
 		UserRatingAvg: userRatingAvg,
 		TotalRatings:  stats.RatingCount.Int32,
-		RatingBias:    globalRatingAvg - userRatingAvg,
-		CriticType:    fromRatingBiasToCriticType(globalRatingAvg - userRatingAvg),
+		RatingBias:    userRatingAvg - globalRatingAvg,
+		CriticType:    fromRatingBiasToCriticType(userRatingAvg - globalRatingAvg),
 		User:          userResponse,
 		CreatedAt:     fromDbToProtoTimestamp(stats.CreatedAt),
 		UpdatedAt:     fromDbToProtoTimestamp(stats.UpdatedAt),
