@@ -33,6 +33,7 @@ func registerRatingRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 
 	e.GET("/ratings", h.listRatings)
 	e.GET("/users/:id/ratings", h.listUserRatings)
+	e.GET("/acts/:id/ratings", h.listActRatings)
 	e.GET("/ratings/:id", h.getRating)
 	e.POST("/ratings", h.createRating)
 	e.PUT("/ratings/:id", h.updateRating)
@@ -75,6 +76,37 @@ func (h *RatingHandler) listUserRatings(echoCtx echo.Context) error {
 	}
 
 	response, err := mapper.FromDbRatingListToResponse(ratings, make([]db.User, 0))
+	if err != nil {
+		return err
+	}
+
+	return echoCtx.JSON(http.StatusOK, response)
+}
+
+func (h *RatingHandler) listActRatings(echoCtx echo.Context) error {
+	ctx := echoCtx.Request().Context()
+
+	var request singleObjectRequest
+	if err := echoCtx.Bind(&request); err != nil {
+		return err
+	}
+
+	actId, err := mapper.FromProtoToDbId(request.Id)
+	if err != nil {
+		return err
+	}
+
+	ratings, err := h.queries.ListRatingsByActId(ctx, actId)
+	if err != nil {
+		return err
+	}
+
+	users, err := h.queries.ListUsers(ctx)
+	if err != nil {
+		return err
+	}
+
+	response, err := mapper.FromDbRatingListToResponse(ratings, users)
 	if err != nil {
 		return err
 	}
