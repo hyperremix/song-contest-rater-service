@@ -79,7 +79,7 @@ func (h *StatHandler) getUserStats(echoCtx echo.Context) error {
 		return err
 	}
 
-	response, err := mapper.FromDbUserStatsToResponse(userStats, globalStats, &authUser.User)
+	response, err := mapper.FromDbUserStatsToResponse(userStats, globalStats, &authUser.DbUser)
 	if err != nil {
 		return err
 	}

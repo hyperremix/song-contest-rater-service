@@ -2,19 +2,18 @@ package authz
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
-	"net/url"
-	"os"
 	"strings"
-	"time"
 
-	"github.com/auth0/go-jwt-middleware/v2/jwks"
-	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/clerk/clerk-sdk-go/v2/jwt"
+	"github.com/clerk/clerk-sdk-go/v2/user"
+	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 type RequestAuthorizer struct {
@@ -53,19 +52,14 @@ func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 				return err
 			}
 
-			user, err := r.queries.GetUserBySub(ctx, authUser.Sub)
+			userID, dbUser, err := syncDbAndClerkState(ctx, authUser, r)
 			if err != nil {
-				echoCtx.Set(AuthUserContextKey, authUser)
-			} else {
-				userID, err := mapper.FromDbToProtoId(user.ID)
-				if err != nil {
-					return err
-				}
-
-				authUser.UserID = userID
-				authUser.User = user
-				echoCtx.Set(AuthUserContextKey, authUser)
+				return err
 			}
+
+			authUser.UserID = userID
+			authUser.DbUser = dbUser
+			echoCtx.Set(AuthUserContextKey, authUser)
 
 			return next(echoCtx)
 		}
@@ -73,54 +67,84 @@ func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 }
 
 func validateAuthorization(ctx context.Context, authHeader string) (*AuthUser, error) {
-	issuerURL, err := url.Parse(os.Getenv("SONGCONTESTRATERSERVICE_AUTH0_ISSUER_URL"))
+	sessionToken := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := jwt.Verify(ctx, &jwt.VerifyParams{
+		Token: sessionToken,
+	})
 	if err != nil {
-		return nil, err
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not verify token")
 	}
 
-	provider := jwks.NewCachingProvider(issuerURL, 5*time.Minute)
-
-	jwtValidator, err := validator.New(
-		provider.KeyFunc,
-		validator.RS256,
-		issuerURL.String(),
-		[]string{os.Getenv("SONGCONTESTRATERSERVICE_AUTH0_AUDIENCE")},
-		validator.WithCustomClaims(
-			func() validator.CustomClaims {
-				return &CustomClaims{}
-			},
-		),
-		validator.WithAllowedClockSkew(time.Minute),
-	)
+	user, err := user.Get(ctx, claims.Subject)
 	if err != nil {
-		return nil, err
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not get user from token")
 	}
 
-	var tokenPayloadBase64 string
-	tokenPayloadBase64, err = getJwtPayload(authHeader)
-	if err != nil {
-		return nil, err
+	var publicMetadata PublicMetadata
+	if err := json.Unmarshal(user.PublicMetadata, &publicMetadata); err != nil {
+		return nil, echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
 	}
 
-	if _, err := jwtValidator.ValidateToken(ctx, tokenPayloadBase64); err != nil {
-		log.Error().Err(err).Msg("could not validate token")
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not validate token")
-	}
-
-	var authUser AuthUser
-	err = authUser.decode(tokenPayloadBase64)
-	if err != nil {
-		log.Error().Err(err).Msg("could not decode token")
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not decode token")
-	}
-
-	return &authUser, nil
+	return &AuthUser{
+		ClerkUser: user,
+		Metadata:  publicMetadata,
+	}, nil
 }
 
-func getJwtPayload(authHeader string) (string, error) {
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return "", echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
+func syncDbAndClerkState(ctx context.Context, authUser *AuthUser, r *RequestAuthorizer) (string, db.User, error) {
+	log := zerolog.Ctx(ctx)
+	user, err := r.queries.GetUserBySub(ctx, authUser.ClerkUser.ID)
+	if err != nil {
+		log.Info().Msgf("user not found in db, inserting user: %s", authUser.ClerkUser.ID)
+		user, err = r.queries.InsertUser(ctx, db.InsertUserParams{
+			Sub:       authUser.ClerkUser.ID,
+			Email:     authUser.ClerkUser.EmailAddresses[0].EmailAddress,
+			Firstname: *authUser.ClerkUser.FirstName,
+			Lastname:  *authUser.ClerkUser.LastName,
+			ImageUrl:  *authUser.ClerkUser.ImageURL,
+		})
+		if err != nil {
+			return "", db.User{}, err
+		}
 	}
 
-	return strings.Split(authHeader, " ")[1], nil
+	userID, err := mapper.FromDbToProtoId(user.ID)
+	if err != nil {
+		return "", db.User{}, err
+	}
+
+	if authUser.Metadata.ID == "" {
+		log.Info().Msgf("metadata.id is not set, updating metadata: %s", authUser.ClerkUser.ID)
+		metadataJSON, err := json.Marshal(map[string]interface{}{
+			"id": userID,
+		})
+		if err != nil {
+			return "", db.User{}, err
+		}
+
+		rawJSON := json.RawMessage(metadataJSON)
+		_, err = clerkuser.UpdateMetadata(ctx, authUser.ClerkUser.ID, &clerkuser.UpdateMetadataParams{
+			PublicMetadata: &rawJSON,
+		})
+		if err != nil {
+			return "", db.User{}, err
+		}
+
+		authUser.Metadata.ID = userID
+	}
+
+	if user.Firstname != *authUser.ClerkUser.FirstName || user.Lastname != *authUser.ClerkUser.LastName || user.ImageUrl != *authUser.ClerkUser.ImageURL {
+		log.Info().Msgf("user data has changed, updating user: %s", authUser.ClerkUser.ID)
+		updateParams, err := mapper.ToUpdateUserParams(user.ID, *authUser.ClerkUser.FirstName, *authUser.ClerkUser.LastName, *authUser.ClerkUser.ImageURL)
+		if err != nil {
+			return "", db.User{}, err
+		}
+
+		_, err = r.queries.UpdateUser(ctx, updateParams)
+		if err != nil {
+			return "", db.User{}, err
+		}
+	}
+
+	return userID, user, nil
 }

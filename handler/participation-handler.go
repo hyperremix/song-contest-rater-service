@@ -6,7 +6,6 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
-	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -26,14 +25,35 @@ func NewParticipationHandler(connPool *pgxpool.Pool) *ParticipationHandler {
 
 func registerParticipationRoutes(e *echo.Group, connPool *pgxpool.Pool) {
 	h := NewParticipationHandler(connPool)
+	e.GET("/participations", h.listParticipations)
 	e.POST("/participations", h.createParticipation)
 	e.DELETE("/participations", h.deleteParticipation)
+}
+
+func (h *ParticipationHandler) listParticipations(echoCtx echo.Context) error {
+	ctx := echoCtx.Request().Context()
+	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
+	if err := authUser.CheckIsAdmin(); err != nil {
+		return err
+	}
+
+	participations, err := h.queries.ListCompetitionActs(ctx)
+	if err != nil {
+		return err
+	}
+
+	response, err := mapper.FromManyCompetitionActsToProto(participations)
+	if err != nil {
+		return err
+	}
+
+	return echoCtx.JSON(http.StatusOK, response)
 }
 
 func (h *ParticipationHandler) createParticipation(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteParticipations); err != nil {
+	if err := authUser.CheckIsAdmin(); err != nil {
 		return err
 	}
 
@@ -58,7 +78,7 @@ func (h *ParticipationHandler) createParticipation(echoCtx echo.Context) error {
 func (h *ParticipationHandler) deleteParticipation(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteParticipations); err != nil {
+	if err := authUser.CheckIsAdmin(); err != nil {
 		return err
 	}
 

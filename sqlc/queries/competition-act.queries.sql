@@ -1,3 +1,6 @@
+-- name: ListCompetitionActs :many
+SELECT * FROM competitions_acts;
+
 -- name: InsertCompetitionAct :exec
 INSERT INTO
     competitions_acts (competition_id, act_id, "order")

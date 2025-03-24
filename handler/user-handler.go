@@ -11,7 +11,6 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
-	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/hyperremix/song-contest-rater-service/s3"
 	"github.com/jackc/pgx/v5"
@@ -91,7 +90,7 @@ func (h *UserHandler) getAuthUser(echoCtx echo.Context) error {
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
 	ctx := echoCtx.Request().Context()
 
-	user, err := h.queries.GetUserBySub(ctx, authUser.Sub)
+	user, err := h.queries.GetUserBySub(ctx, authUser.ClerkUser.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusNotFound, "user not found")
 	}
@@ -117,7 +116,7 @@ func (h *UserHandler) createUser(echoCtx echo.Context) error {
 		return err
 	}
 
-	insertParams, err := mapper.FromCreateRequestToInsertUser(&request, authUser.Sub)
+	insertParams, err := mapper.FromCreateRequestToInsertUser(&request, authUser.ClerkUser.ID)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,7 @@ func (h *UserHandler) updateUser(echoCtx echo.Context) error {
 	}
 
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteUsers); err != nil && authUser.UserID != request.Id {
+	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Id {
 		return err
 	}
 
@@ -186,7 +185,7 @@ func (h *UserHandler) deleteUser(echoCtx echo.Context) error {
 	}
 
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteUsers); err != nil && authUser.UserID != request.Id {
+	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Id {
 		return err
 	}
 

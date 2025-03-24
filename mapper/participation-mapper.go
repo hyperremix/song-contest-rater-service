@@ -5,6 +5,38 @@ import (
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 )
 
+func FromManyCompetitionActsToProto(rows []db.CompetitionsAct) (*pb.ListParticipationsResponse, error) {
+	protoResponses := make([]*pb.ParticipationResponse, len(rows))
+
+	for i, row := range rows {
+		protoResponse, err := FromCompetitionActToProto(&row)
+		if err != nil {
+			return nil, NewRequestBindingError(err)
+		}
+		protoResponses[i] = protoResponse
+	}
+
+	return &pb.ListParticipationsResponse{Participations: protoResponses}, nil
+}
+
+func FromCompetitionActToProto(row *db.CompetitionsAct) (*pb.ParticipationResponse, error) {
+	competitionId, err := FromDbToProtoId(row.CompetitionID)
+	if err != nil {
+		return nil, NewRequestBindingError(err)
+	}
+
+	actId, err := FromDbToProtoId(row.ActID)
+	if err != nil {
+		return nil, NewRequestBindingError(err)
+	}
+
+	return &pb.ParticipationResponse{
+		CompetitionId: competitionId,
+		ActId:         actId,
+		Order:         int32(row.Order.Int32),
+	}, nil
+}
+
 func FromCreateRequestToInsertCompetitionAct(request *pb.CreateParticipationRequest) (db.InsertCompetitionActParams, error) {
 	competitionId, err := FromProtoToDbId(request.CompetitionId)
 	if err != nil {

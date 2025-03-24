@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	clerk "github.com/clerk/clerk-sdk-go/v2"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/custommiddleware"
 	"github.com/hyperremix/song-contest-rater-service/handler"
@@ -47,6 +48,8 @@ func main() {
 	e := echo.New()
 
 	ctx := context.Background()
+
+	clerk.SetKey(os.Getenv("SONGCONTESTRATERSERVICE_CLERK_SECRET_KEY"))
 
 	connPool, err := setupPool(ctx)
 	if err != nil {

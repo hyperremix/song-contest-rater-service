@@ -12,6 +12,7 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/stat"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 type RatingHandler struct {
@@ -173,7 +174,7 @@ func (h *RatingHandler) createRating(echoCtx echo.Context) error {
 		return err
 	}
 
-	response, err := mapper.FromDbRatingToResponse(rating, &authUser.User)
+	response, err := mapper.FromDbRatingToResponse(rating, &authUser.DbUser)
 	if err != nil {
 		return err
 	}
@@ -231,7 +232,7 @@ func (h *RatingHandler) updateRating(echoCtx echo.Context) error {
 		return err
 	}
 
-	response, err := mapper.FromDbRatingToResponse(rating, &authUser.User)
+	response, err := mapper.FromDbRatingToResponse(rating, &authUser.DbUser)
 	if err != nil {
 		return err
 	}
@@ -309,6 +310,8 @@ func (h *RatingHandler) streamRatings(echoCtx echo.Context) error {
 	ch := make(chan sse.Event)
 	broker.AddUserChan(authUser.UserID, ch)
 
+	log := zerolog.Ctx(echoCtx.Request().Context())
+
 	defer ticker.Stop()
 	defer broker.RemoveUserChan(authUser.UserID, ch)
 	for {
@@ -321,12 +324,17 @@ func (h *RatingHandler) streamRatings(echoCtx echo.Context) error {
 			}
 			echoCtx.Response().Flush()
 		case <-ticker.C:
-			event := sse.Event{
-				Event:   []byte("ping"),
-				Retry:   []byte("10000"),
-				Comment: []byte("keep-alive"),
+			event, err := sse.NewEvent(sse.EventOptions{
+				ID:    "system",
+				Event: "ping",
+				Retry: 10000,
+				Data:  "keep-alive",
+			})
+			if err != nil {
+				log.Error().Err(err).Msg("error creating ping event")
+				continue
 			}
-			broker.BroadcastEvent(authUser.UserID, event)
+			broker.BroadcastEvent("system", event)
 		}
 	}
 }

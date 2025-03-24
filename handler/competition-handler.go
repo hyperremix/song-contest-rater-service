@@ -6,7 +6,6 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
-	"github.com/hyperremix/song-contest-rater-service/permission"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -93,7 +92,7 @@ func (h *CompetitionHandler) getCompetition(echoCtx echo.Context) error {
 func (h *CompetitionHandler) createCompetition(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+	if err := authUser.CheckIsAdmin(); err != nil {
 		return err
 	}
 
@@ -120,7 +119,7 @@ func (h *CompetitionHandler) createCompetition(echoCtx echo.Context) error {
 func (h *CompetitionHandler) updateCompetition(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+	if err := authUser.CheckIsAdmin(); err != nil {
 		return err
 	}
 
@@ -156,7 +155,7 @@ func (h *CompetitionHandler) updateCompetition(echoCtx echo.Context) error {
 func (h *CompetitionHandler) deleteCompetition(echoCtx echo.Context) error {
 	ctx := echoCtx.Request().Context()
 	authUser := echoCtx.Get(authz.AuthUserContextKey).(*authz.AuthUser)
-	if err := authUser.CheckHasPermission(permission.WriteCompetitions); err != nil {
+	if err := authUser.CheckIsAdmin(); err != nil {
 		return err
 	}
 

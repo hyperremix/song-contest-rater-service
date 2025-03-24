@@ -1,12 +1,10 @@
 package authz
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"reflect"
-	"strings"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,20 +12,23 @@ import (
 )
 
 type AuthUser struct {
-	UserID      string
-	User        db.User
-	Permissions []string `json:"permissions"`
-	Sub         string   `json:"sub"`
+	UserID    string
+	ClerkUser *clerk.User
+	DbUser    db.User
+	Metadata  PublicMetadata
 }
 
-func (u *AuthUser) CheckHasPermission(p string) error {
-	for _, perm := range u.Permissions {
-		if perm == p {
-			return nil
-		}
+type PublicMetadata struct {
+	ID   string `json:"id"`
+	Role string `json:"role"`
+}
+
+func (u *AuthUser) CheckIsAdmin() error {
+	if u.Metadata.Role != "admin" {
+		return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
 	}
 
-	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
+	return nil
 }
 
 func (u *AuthUser) CheckIsOwner(obj any) error {
@@ -45,18 +46,9 @@ func (u *AuthUser) CheckIsOwner(obj any) error {
 }
 
 func (u *AuthUser) CheckIsUser(user db.User) error {
-	if u.Sub == user.Sub {
+	if u.ClerkUser.ID == user.Sub {
 		return nil
 	}
 
 	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
-}
-
-func (u *AuthUser) decode(s string) error {
-	barr, err := base64.RawStdEncoding.DecodeString(strings.Split(s, ".")[1])
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(barr, u)
 }

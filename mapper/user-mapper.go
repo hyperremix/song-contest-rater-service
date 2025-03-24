@@ -3,6 +3,7 @@ package mapper
 import (
 	"github.com/hyperremix/song-contest-rater-service/db"
 	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
@@ -58,6 +59,16 @@ func FromUpdateRequestToUpdateUser(c *pb.UpdateUserRequest) (db.UpdateUserParams
 		Firstname: c.Firstname,
 		Lastname:  c.Lastname,
 		ImageUrl:  c.ImageUrl,
+	}, nil
+}
+
+func ToUpdateUserParams(id pgtype.UUID, firstname string, lastname string, imageUrl string) (db.UpdateUserParams, error) {
+
+	return db.UpdateUserParams{
+		ID:        id,
+		Firstname: firstname,
+		Lastname:  lastname,
+		ImageUrl:  imageUrl,
 	}, nil
 }
 
