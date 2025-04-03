@@ -3,7 +3,6 @@ export $(shell sed 's/=.*//' .env)
 
 PACKAGES := $(shell go list ./...)
 name := $(shell basename ${PWD})
-SONGCONTESTRATERSERVICE_PROTO_VERSION := v1.0.35
 
 all: help
 
@@ -71,11 +70,6 @@ db-migrate:
 .PHONY: sqlc-generate
 sqlc-generate:
 	sqlc generate
-
-## proto-generate: generate protobuf files
-.PHONY: proto-generate
-proto-generate:
-	go get github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION) && protoc -I=$$(go env GOPATH)/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION) --go_out=. --go-grpc_out=. $$(go env GOPATH)/pkg/mod/github.com/hyperremix/song-contest-rater-proto@$(SONGCONTESTRATERSERVICE_PROTO_VERSION)/*.proto && go mod tidy
 
 ## fly-db-proxy: start fly.io db proxy
 .PHONY: fly-db-proxy

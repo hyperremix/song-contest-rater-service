@@ -1,8 +1,8 @@
 package mapper
 
 import (
+	pb "github.com/hyperremix/song-contest-rater-protos/v3"
 	"github.com/hyperremix/song-contest-rater-service/db"
-	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 )
 
 func fromDbHeatToResponse(h db.Heat) pb.Heat {

@@ -1,6 +1,6 @@
 package util
 
-import pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
+import pb "github.com/hyperremix/song-contest-rater-protos/v3"
 
 func RatingSum(rating *pb.RatingResponse) int32 {
 	return rating.Song + rating.Singing + rating.Show + rating.Looks + rating.Clothes

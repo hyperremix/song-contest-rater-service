@@ -3,8 +3,8 @@ package mapper
 import (
 	"sort"
 
+	pb "github.com/hyperremix/song-contest-rater-protos/v3"
 	"github.com/hyperremix/song-contest-rater-service/db"
-	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 	"github.com/hyperremix/song-contest-rater-service/util"
 	"github.com/jackc/pgx/v5/pgtype"
 )

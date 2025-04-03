@@ -1,8 +1,8 @@
 package mapper
 
 import (
+	pb "github.com/hyperremix/song-contest-rater-protos/v3"
 	"github.com/hyperremix/song-contest-rater-service/db"
-	pb "github.com/hyperremix/song-contest-rater-service/protos/songcontestrater"
 )
 
 func FromDbCompetitionListToResponse(c []db.Competition) (*pb.ListCompetitionsResponse, error) {
