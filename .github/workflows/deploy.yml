@@ -16,14 +16,7 @@ jobs:
       - run: make sqlc-generate
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.7"
-      - uses: arduino/setup-protoc@v3
-        with:
-          version: "28.3"
-      - run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-      - run: make proto-generate
+          go-version: "1.23.5"
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:
