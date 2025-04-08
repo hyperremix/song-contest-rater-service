@@ -1,14 +1,14 @@
 package authz
 
 import (
-	"net/http"
 	"reflect"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/labstack/echo/v4"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AuthUser struct {
@@ -25,7 +25,7 @@ type PublicMetadata struct {
 
 func (u *AuthUser) CheckIsAdmin() error {
 	if u.Metadata.Role != "admin" {
-		return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
+		return status.Errorf(codes.PermissionDenied, "missing permission to access this resource")
 	}
 
 	return nil
@@ -35,14 +35,14 @@ func (u *AuthUser) CheckIsOwner(obj any) error {
 	dbId := reflect.ValueOf(&obj).Elem().Elem().FieldByName("UserID").Interface().(pgtype.UUID)
 	id, err := mapper.FromDbToProtoId(dbId)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert id")
+		return status.Errorf(codes.Internal, "failed to convert id")
 	}
 
 	if u.UserID == id {
 		return nil
 	}
 
-	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
+	return status.Errorf(codes.PermissionDenied, "missing permission to access this resource")
 }
 
 func (u *AuthUser) CheckIsUser(user db.User) error {
@@ -50,5 +50,5 @@ func (u *AuthUser) CheckIsUser(user db.User) error {
 		return nil
 	}
 
-	return echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
+	return status.Errorf(codes.PermissionDenied, "missing permission to access this resource")
 }
