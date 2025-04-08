@@ -1,7 +1,7 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v3"
+	pb "github.com/hyperremix/song-contest-rater-protos/v4"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/jackc/pgx/v5/pgtype"
 )

@@ -1,10 +1,10 @@
 -- name: ListUsers :many
 SELECT * FROM users;
 
--- name: ListUsersByCompetitionId :many
+-- name: ListUsersByContestId :many
 SELECT u.* FROM users u
 JOIN ratings r ON u.id = r.user_id
-WHERE r.competition_id = $1;
+WHERE r.contest_id = $1;
 
 -- name: ListUsersByActId :many
 SELECT u.* FROM users u

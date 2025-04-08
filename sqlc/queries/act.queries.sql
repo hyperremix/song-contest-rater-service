@@ -1,10 +1,10 @@
 -- name: ListActs :many
 SELECT * FROM acts;
 
--- name: ListActsByCompetitionId :many
-SELECT a.*, ca.order FROM acts a
-JOIN competitions_acts ca ON a.id = ca.act_id
-WHERE ca.competition_id = $1;
+-- name: ListActsByContestId :many
+SELECT a.*, p.order FROM acts a
+JOIN participations p ON a.id = p.act_id
+WHERE p.contest_id = $1;
 
 -- name: GetActById :one
 SELECT * FROM acts WHERE id = $1 LIMIT 1;
