@@ -3,16 +3,15 @@ package server
 import (
 	"context"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type ParticipationServer struct {
-	pb.UnimplementedParticipationServer
 	queries  *db.Queries
 	connPool *pgxpool.Pool
 }
@@ -24,8 +23,8 @@ func NewParticipationServer(connPool *pgxpool.Pool) *ParticipationServer {
 	}
 }
 
-func (s *ParticipationServer) ListParticipations(ctx context.Context, request *emptypb.Empty) (*pb.ListParticipationsResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ParticipationServer) ListParticipations(ctx context.Context, request *connect.Request[pb.ListParticipationsRequest]) (*connect.Response[pb.ListParticipationsResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
@@ -40,16 +39,16 @@ func (s *ParticipationServer) ListParticipations(ctx context.Context, request *e
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListParticipationsResponse{Participations: response}), nil
 }
 
-func (s *ParticipationServer) CreateParticipation(ctx context.Context, request *pb.CreateParticipationRequest) (*pb.ParticipationResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ParticipationServer) CreateParticipation(ctx context.Context, request *connect.Request[pb.CreateParticipationRequest]) (*connect.Response[pb.CreateParticipationResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
 
-	insertParams, err := mapper.FromCreateRequestToInsertParticipation(request)
+	insertParams, err := mapper.FromCreateRequestToInsertParticipation(request.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -64,16 +63,16 @@ func (s *ParticipationServer) CreateParticipation(ctx context.Context, request *
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.CreateParticipationResponse{Participation: response}), nil
 }
 
-func (s *ParticipationServer) DeleteParticipation(ctx context.Context, request *pb.DeleteParticipationRequest) (*pb.ParticipationResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ParticipationServer) DeleteParticipation(ctx context.Context, request *connect.Request[pb.DeleteParticipationRequest]) (*connect.Response[pb.DeleteParticipationResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
 
-	deleteParams, err := mapper.FromDeleteRequestToDeleteParticipation(request)
+	deleteParams, err := mapper.FromDeleteRequestToDeleteParticipation(request.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -88,5 +87,5 @@ func (s *ParticipationServer) DeleteParticipation(ctx context.Context, request *
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.DeleteParticipationResponse{Participation: response}), nil
 }

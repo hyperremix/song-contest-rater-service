@@ -3,14 +3,14 @@ package mapper
 import (
 	"sort"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/util"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) (*pb.ListActsResponse, error) {
-	var acts []*pb.ActResponse
+func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) ([]*pb.Act, error) {
+	var acts []*pb.Act
 
 	for _, act := range a {
 		proto, err := FromDbActToResponse(act, getActRatings(r, act.ID), u)
@@ -25,11 +25,11 @@ func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) (*pb.ListAc
 		return util.ManyRatingsSum(acts[i].Ratings) > util.ManyRatingsSum(acts[j].Ratings)
 	})
 
-	return &pb.ListActsResponse{Acts: acts}, nil
+	return acts, nil
 }
 
-func FromDbOrderedActListToResponse(a []db.ListActsByContestIdRow, r []db.Rating, u []db.User) (*pb.ListActsResponse, error) {
-	var acts []*pb.ActResponse
+func FromDbOrderedActListToResponse(a []db.ListActsByContestIdRow, r []db.Rating, u []db.User) ([]*pb.Act, error) {
+	var acts []*pb.Act
 
 	for _, act := range a {
 		proto, err := FromDbOrderedActToResponse(act, getActRatings(r, act.ID), u)
@@ -44,7 +44,7 @@ func FromDbOrderedActListToResponse(a []db.ListActsByContestIdRow, r []db.Rating
 		return util.ManyRatingsSum(acts[i].Ratings) > util.ManyRatingsSum(acts[j].Ratings)
 	})
 
-	return &pb.ListActsResponse{Acts: acts}, nil
+	return acts, nil
 }
 
 func getActRatings(r []db.Rating, actID pgtype.UUID) []db.Rating {
@@ -58,54 +58,54 @@ func getActRatings(r []db.Rating, actID pgtype.UUID) []db.Rating {
 	return ratings
 }
 
-func FromDbOrderedActToResponse(a db.ListActsByContestIdRow, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
+func FromDbOrderedActToResponse(a db.ListActsByContestIdRow, r []db.Rating, u []db.User) (*pb.Act, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	ratingListResponse, err := FromDbRatingListToResponse(r, u)
+	ratings, err := FromDbRatingListToResponse(r, u)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	sort.Slice(ratingListResponse.Ratings, func(i, j int) bool {
-		return util.RatingSum(ratingListResponse.Ratings[i]) > util.RatingSum(ratingListResponse.Ratings[j])
+	sort.Slice(ratings, func(i, j int) bool {
+		return util.RatingSum(ratings[i]) > util.RatingSum(ratings[j])
 	})
 
-	return &pb.ActResponse{
+	return &pb.Act{
 		Id:         id,
 		ArtistName: a.ArtistName,
 		SongName:   a.SongName,
 		ImageUrl:   a.ImageUrl,
 		Order:      a.Order.Int32,
-		Ratings:    ratingListResponse.Ratings,
+		Ratings:    ratings,
 		CreatedAt:  fromDbToProtoTimestamp(a.CreatedAt),
 		UpdatedAt:  fromDbToProtoTimestamp(a.UpdatedAt),
 	}, nil
 }
 
-func FromDbActToResponse(a db.Act, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
+func FromDbActToResponse(a db.Act, r []db.Rating, u []db.User) (*pb.Act, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	ratingListResponse, err := FromDbRatingListToResponse(r, u)
+	ratings, err := FromDbRatingListToResponse(r, u)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	sort.Slice(ratingListResponse.Ratings, func(i, j int) bool {
-		return util.RatingSum(ratingListResponse.Ratings[i]) > util.RatingSum(ratingListResponse.Ratings[j])
+	sort.Slice(ratings, func(i, j int) bool {
+		return util.RatingSum(ratings[i]) > util.RatingSum(ratings[j])
 	})
 
-	return &pb.ActResponse{
+	return &pb.Act{
 		Id:         id,
 		ArtistName: a.ArtistName,
 		SongName:   a.SongName,
 		ImageUrl:   a.ImageUrl,
-		Ratings:    ratingListResponse.Ratings,
+		Ratings:    ratings,
 		CreatedAt:  fromDbToProtoTimestamp(a.CreatedAt),
 		UpdatedAt:  fromDbToProtoTimestamp(a.UpdatedAt),
 	}, nil

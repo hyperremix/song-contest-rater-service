@@ -1,7 +1,7 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 

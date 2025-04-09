@@ -5,16 +5,15 @@ import (
 	"database/sql"
 	"errors"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type StatServer struct {
-	pb.UnimplementedStatServer
 	queries *db.Queries
 	pool    *pgxpool.Pool
 }
@@ -26,7 +25,7 @@ func NewStatServer(pool *pgxpool.Pool) *StatServer {
 	}
 }
 
-func (s *StatServer) ListUserStats(ctx context.Context, request *emptypb.Empty) (*pb.ListUserStatsResponse, error) {
+func (s *StatServer) ListUserStats(ctx context.Context, request *connect.Request[pb.ListUserStatsRequest]) (*connect.Response[pb.ListUserStatsResponse], error) {
 	usersStats, err := s.queries.ListUserStats(ctx)
 	if err != nil {
 		return nil, err
@@ -47,11 +46,11 @@ func (s *StatServer) ListUserStats(ctx context.Context, request *emptypb.Empty) 
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListUserStatsResponse{Stats: response}), nil
 }
 
-func (s *StatServer) GetMyStats(ctx context.Context, request *emptypb.Empty) (*pb.UserStatsResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *StatServer) GetMyStats(ctx context.Context, request *connect.Request[pb.GetMyStatsRequest]) (*connect.Response[pb.GetMyStatsResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	userId, err := mapper.FromProtoToDbId(authUser.UserID)
 	if err != nil {
 		return nil, err
@@ -60,7 +59,7 @@ func (s *StatServer) GetMyStats(ctx context.Context, request *emptypb.Empty) (*p
 	userStats, err := s.queries.GetStatsByUserId(ctx, userId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return mapper.EmptyUserStatsResponse(), nil
+			return connect.NewResponse(&pb.GetMyStatsResponse{Stats: mapper.EmptyUserStatsResponse()}), nil
 		}
 		return nil, err
 	}
@@ -75,14 +74,14 @@ func (s *StatServer) GetMyStats(ctx context.Context, request *emptypb.Empty) (*p
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetMyStatsResponse{Stats: response}), nil
 }
 
-func (s *StatServer) GetGlobalStats(ctx context.Context, request *emptypb.Empty) (*pb.GlobalStatsResponse, error) {
+func (s *StatServer) GetGlobalStats(ctx context.Context, request *connect.Request[pb.GetGlobalStatsRequest]) (*connect.Response[pb.GetGlobalStatsResponse], error) {
 	globalStats, err := s.queries.GetGlobalStats(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return mapper.EmptyGlobalStatsResponse(), nil
+			return connect.NewResponse(&pb.GetGlobalStatsResponse{Stats: mapper.EmptyGlobalStatsResponse()}), nil
 		}
 		return nil, err
 	}
@@ -92,5 +91,5 @@ func (s *StatServer) GetGlobalStats(ctx context.Context, request *emptypb.Empty)
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetGlobalStatsResponse{Stats: response}), nil
 }

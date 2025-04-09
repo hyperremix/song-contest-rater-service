@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
@@ -12,11 +13,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type UserServer struct {
-	pb.UnimplementedUserServer
 	queries  *db.Queries
 	connPool *pgxpool.Pool
 }
@@ -28,7 +27,7 @@ func NewUserServer(connPool *pgxpool.Pool) *UserServer {
 	}
 }
 
-func (s *UserServer) ListUsers(ctx context.Context, request *emptypb.Empty) (*pb.ListUsersResponse, error) {
+func (s *UserServer) ListUsers(ctx context.Context, request *connect.Request[pb.ListUsersRequest]) (*connect.Response[pb.ListUsersResponse], error) {
 	users, err := s.queries.ListUsers(ctx)
 	if err != nil {
 		return nil, err
@@ -39,11 +38,11 @@ func (s *UserServer) ListUsers(ctx context.Context, request *emptypb.Empty) (*pb
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListUsersResponse{Users: response}), nil
 }
 
-func (s *UserServer) GetUser(ctx context.Context, request *pb.GetUserRequest) (*pb.UserResponse, error) {
-	id, err := mapper.FromProtoToDbId(request.Id)
+func (s *UserServer) GetUser(ctx context.Context, request *connect.Request[pb.GetUserRequest]) (*connect.Response[pb.GetUserResponse], error) {
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +57,11 @@ func (s *UserServer) GetUser(ctx context.Context, request *pb.GetUserRequest) (*
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetUserResponse{User: response}), nil
 }
 
-func (s *UserServer) GetAuthUser(ctx context.Context, request *emptypb.Empty) (*pb.UserResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *UserServer) GetAuthUser(ctx context.Context, request *connect.Request[pb.GetUserRequest]) (*connect.Response[pb.GetUserResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
 	user, err := s.queries.GetUserBySub(ctx, authUser.ClerkUser.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -78,13 +77,13 @@ func (s *UserServer) GetAuthUser(ctx context.Context, request *emptypb.Empty) (*
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetUserResponse{User: response}), nil
 }
 
-func (s *UserServer) CreateUser(ctx context.Context, request *pb.CreateUserRequest) (*pb.UserResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *UserServer) CreateUser(ctx context.Context, request *connect.Request[pb.CreateUserRequest]) (*connect.Response[pb.CreateUserResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	insertParams, err := mapper.FromCreateRequestToInsertUser(request, authUser.ClerkUser.ID)
+	insertParams, err := mapper.FromCreateRequestToInsertUser(request.Msg, authUser.ClerkUser.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,17 +98,17 @@ func (s *UserServer) CreateUser(ctx context.Context, request *pb.CreateUserReque
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.CreateUserResponse{User: response}), nil
 }
 
-func (s *UserServer) UpdateUser(ctx context.Context, request *pb.UpdateUserRequest) (*pb.UserResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *UserServer) UpdateUser(ctx context.Context, request *connect.Request[pb.UpdateUserRequest]) (*connect.Response[pb.UpdateUserResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Id {
+	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Msg.Id {
 		return nil, err
 	}
 
-	updateParams, err := mapper.FromUpdateRequestToUpdateUser(request)
+	updateParams, err := mapper.FromUpdateRequestToUpdateUser(request.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -124,17 +123,17 @@ func (s *UserServer) UpdateUser(ctx context.Context, request *pb.UpdateUserReque
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.UpdateUserResponse{User: response}), nil
 }
 
-func (s *UserServer) DeleteUser(ctx context.Context, request *pb.DeleteUserRequest) (*pb.UserResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *UserServer) DeleteUser(ctx context.Context, request *connect.Request[pb.DeleteUserRequest]) (*connect.Response[pb.DeleteUserResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Id {
+	if err := authUser.CheckIsAdmin(); err != nil && authUser.UserID != request.Msg.Id {
 		return nil, err
 	}
 
-	id, err := mapper.FromProtoToDbId(request.Id)
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -149,5 +148,5 @@ func (s *UserServer) DeleteUser(ctx context.Context, request *pb.DeleteUserReque
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.DeleteUserResponse{User: response}), nil
 }

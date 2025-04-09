@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 
-func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResponse, error) {
-	var ratings []*pb.RatingResponse
+func FromDbRatingListToResponse(r []db.Rating, u []db.User) ([]*pb.Rating, error) {
+	var ratings []*pb.Rating
 
 	for _, rating := range r {
 		user := getUser(u, rating.UserID)
@@ -19,10 +19,10 @@ func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResp
 		ratings = append(ratings, proto)
 	}
 
-	return &pb.ListRatingsResponse{Ratings: ratings}, nil
+	return ratings, nil
 }
 
-func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error) {
+func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.Rating, error) {
 	id, err := FromDbToProtoId(r.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
@@ -38,7 +38,7 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 		return nil, NewResponseBindingError(err)
 	}
 
-	var userResponse *pb.UserResponse
+	var userResponse *pb.User
 	if u != nil {
 		userResponse, err = FromDbUserToResponse(*u)
 		if err != nil {
@@ -46,7 +46,7 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 		}
 	}
 
-	return &pb.RatingResponse{
+	return &pb.Rating{
 		Id:        id,
 		ContestId: contestId,
 		ActId:     actId,

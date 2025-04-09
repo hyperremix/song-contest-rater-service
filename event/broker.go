@@ -1,14 +1,15 @@
 package event
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 )
 
 type Broker struct {
 	// users is a map where the key is the user id
 	// and the value is a slice of channels to connections
 	// for that user id. Channel value is a pointer to a rating response until further types are needed.
-	users map[string][]chan *pb.RatingResponse
+	users map[string][]chan *connect.Response[pb.StreamRatingsResponse]
 
 	// actions is a channel of functions to call
 	// in the broker's goroutine. The broker executes
@@ -27,7 +28,7 @@ func (b *Broker) Run() {
 
 func NewBroker() *Broker {
 	b := &Broker{
-		users:   make(map[string][]chan *pb.RatingResponse),
+		users:   make(map[string][]chan *connect.Response[pb.StreamRatingsResponse]),
 		actions: make(chan func()),
 	}
 	go b.Run()
@@ -35,14 +36,14 @@ func NewBroker() *Broker {
 }
 
 // AddUserChan adds a channel for user with given id.
-func (b *Broker) AddUserChan(id string, ch chan *pb.RatingResponse) {
+func (b *Broker) AddUserChan(id string, ch chan *connect.Response[pb.StreamRatingsResponse]) {
 	b.actions <- func() {
 		b.users[id] = append(b.users[id], ch)
 	}
 }
 
 // RemoveUserchan removes a channel for a user with the given id.
-func (b *Broker) RemoveUserChan(id string, ch chan *pb.RatingResponse) {
+func (b *Broker) RemoveUserChan(id string, ch chan *connect.Response[pb.StreamRatingsResponse]) {
 	// The broker may be trying to send to
 	// ch, but nothing is receiving. Pump ch
 	// to prevent broker from getting stuck.
@@ -75,7 +76,7 @@ func (b *Broker) RemoveUserChan(id string, ch chan *pb.RatingResponse) {
 }
 
 // BroadcastEvent sends a message to all users except the source user
-func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.RatingResponse) {
+func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.Rating) {
 	b.actions <- func() {
 		for userId, chs := range b.users {
 			if userId == sourceUserId {
@@ -83,7 +84,7 @@ func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.RatingResponse) {
 			}
 
 			for _, ch := range chs {
-				ch <- event
+				ch <- connect.NewResponse(&pb.StreamRatingsResponse{Rating: event})
 			}
 		}
 	}

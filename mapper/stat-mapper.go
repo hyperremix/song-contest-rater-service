@@ -1,13 +1,13 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func EmptyUserStatsResponse() *pb.UserStatsResponse {
-	return &pb.UserStatsResponse{
+func EmptyUserStatsResponse() *pb.UserStats {
+	return &pb.UserStats{
 		UserRatingAvg: 0,
 		TotalRatings:  0,
 		RatingBias:    0,
@@ -18,8 +18,8 @@ func EmptyUserStatsResponse() *pb.UserStatsResponse {
 	}
 }
 
-func EmptyGlobalStatsResponse() *pb.GlobalStatsResponse {
-	return &pb.GlobalStatsResponse{
+func EmptyGlobalStatsResponse() *pb.GlobalStats {
+	return &pb.GlobalStats{
 		GlobalRatingAvg: 0,
 		TotalRatings:    0,
 		CreatedAt:       nil,
@@ -27,8 +27,8 @@ func EmptyGlobalStatsResponse() *pb.GlobalStatsResponse {
 	}
 }
 
-func FromDbUserStatListToResponse(stats []db.UserStat, globalStats db.GlobalStat, users []db.User) (*pb.ListUserStatsResponse, error) {
-	response := make([]*pb.UserStatsResponse, len(stats))
+func FromDbUserStatListToResponse(stats []db.UserStat, globalStats db.GlobalStat, users []db.User) ([]*pb.UserStats, error) {
+	response := make([]*pb.UserStats, len(stats))
 	for i, stat := range stats {
 		user := getStatUser(users, stat.UserID)
 
@@ -40,7 +40,7 @@ func FromDbUserStatListToResponse(stats []db.UserStat, globalStats db.GlobalStat
 		response[i] = proto
 	}
 
-	return &pb.ListUserStatsResponse{Stats: response}, nil
+	return response, nil
 }
 
 func getStatUser(u []db.User, userId pgtype.UUID) *db.User {
@@ -57,7 +57,7 @@ func getStatUser(u []db.User, userId pgtype.UUID) *db.User {
 	return nil
 }
 
-func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, user *db.User) (*pb.UserStatsResponse, error) {
+func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, user *db.User) (*pb.UserStats, error) {
 	userRatingAvg, err := fromNumericToFloat64(stats.RatingAvg)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
@@ -68,7 +68,7 @@ func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, use
 		return nil, NewResponseBindingError(err)
 	}
 
-	var userResponse *pb.UserResponse
+	var userResponse *pb.User
 	if user != nil {
 		userResponse, err = FromDbUserToResponse(*user)
 		if err != nil {
@@ -76,7 +76,7 @@ func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, use
 		}
 	}
 
-	return &pb.UserStatsResponse{
+	return &pb.UserStats{
 		UserRatingAvg: userRatingAvg,
 		TotalRatings:  stats.RatingCount.Int32,
 		RatingBias:    userRatingAvg - globalRatingAvg,
@@ -87,13 +87,13 @@ func FromDbUserStatsToResponse(stats db.UserStat, globalStats db.GlobalStat, use
 	}, nil
 }
 
-func FromDbGlobalStatsToResponse(stats db.GlobalStat) (*pb.GlobalStatsResponse, error) {
+func FromDbGlobalStatsToResponse(stats db.GlobalStat) (*pb.GlobalStats, error) {
 	globalRatingAvg, err := fromNumericToFloat64(stats.RatingAvg)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	return &pb.GlobalStatsResponse{
+	return &pb.GlobalStats{
 		GlobalRatingAvg: globalRatingAvg,
 		TotalRatings:    stats.RatingCount.Int32,
 		CreatedAt:       fromDbToProtoTimestamp(stats.CreatedAt),
@@ -101,7 +101,7 @@ func FromDbGlobalStatsToResponse(stats db.GlobalStat) (*pb.GlobalStatsResponse, 
 	}, nil
 }
 
-func FromRatingToDbUserStats(rating *pb.RatingResponse) db.UpsertUserStatsParams {
+func FromRatingToDbUserStats(rating *pb.Rating) db.UpsertUserStatsParams {
 	userId, err := FromProtoToDbId(rating.User.Id)
 	if err != nil {
 		return db.UpsertUserStatsParams{}
@@ -114,14 +114,14 @@ func FromRatingToDbUserStats(rating *pb.RatingResponse) db.UpsertUserStatsParams
 	}
 }
 
-func FromRatingToDbGlobalStats(rating *pb.RatingResponse) db.UpsertGlobalStatsParams {
+func FromRatingToDbGlobalStats(rating *pb.Rating) db.UpsertGlobalStatsParams {
 	return db.UpsertGlobalStatsParams{
 		RatingAvg:   fromFloat64ToNumeric(float64(rating.Total)),
 		RatingCount: fromInt32ToInt4(1),
 	}
 }
 
-func AddToUserStats(newRating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+func AddToUserStats(newRating *pb.Rating, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
 	newAvg, newCount, err := calculateAddedAverage(
 		userStats.RatingAvg,
 		userStats.RatingCount.Int32,
@@ -138,7 +138,7 @@ func AddToUserStats(newRating *pb.RatingResponse, userStats db.UserStat) (db.Ups
 	}, nil
 }
 
-func UpdateUserStats(newRating *pb.RatingResponse, oldRating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+func UpdateUserStats(newRating *pb.Rating, oldRating *pb.Rating, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
 	newAvg, err := calculateUpdatedAverage(
 		userStats.RatingAvg,
 		userStats.RatingCount.Int32,
@@ -156,7 +156,7 @@ func UpdateUserStats(newRating *pb.RatingResponse, oldRating *pb.RatingResponse,
 	}, nil
 }
 
-func RemoveFromUserStats(rating *pb.RatingResponse, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
+func RemoveFromUserStats(rating *pb.Rating, userStats db.UserStat) (db.UpsertUserStatsParams, error) {
 	newAvg, newCount, err := calculateRemovedAverage(
 		userStats.RatingAvg,
 		userStats.RatingCount.Int32,
@@ -173,7 +173,7 @@ func RemoveFromUserStats(rating *pb.RatingResponse, userStats db.UserStat) (db.U
 	}, nil
 }
 
-func AddToGlobalStats(newRating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+func AddToGlobalStats(newRating *pb.Rating, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
 	newAvg, newCount, err := calculateAddedAverage(
 		globalStats.RatingAvg,
 		globalStats.RatingCount.Int32,
@@ -189,7 +189,7 @@ func AddToGlobalStats(newRating *pb.RatingResponse, globalStats db.GlobalStat) (
 	}, nil
 }
 
-func UpdateGlobalStats(newRating *pb.RatingResponse, oldRating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+func UpdateGlobalStats(newRating *pb.Rating, oldRating *pb.Rating, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
 	newAvg, err := calculateUpdatedAverage(
 		globalStats.RatingAvg,
 		globalStats.RatingCount.Int32,
@@ -206,7 +206,7 @@ func UpdateGlobalStats(newRating *pb.RatingResponse, oldRating *pb.RatingRespons
 	}, nil
 }
 
-func RemoveFromGlobalStats(rating *pb.RatingResponse, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
+func RemoveFromGlobalStats(rating *pb.Rating, globalStats db.GlobalStat) (db.UpsertGlobalStatsParams, error) {
 	newAvg, newCount, err := calculateRemovedAverage(
 		globalStats.RatingAvg,
 		globalStats.RatingCount.Int32,

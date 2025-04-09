@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
@@ -12,11 +13,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type RatingServer struct {
-	pb.UnimplementedRatingServer
 	queries     *db.Queries
 	pool        *pgxpool.Pool
 	statService *stat.Service
@@ -30,7 +29,7 @@ func NewRatingServer(pool *pgxpool.Pool) *RatingServer {
 	}
 }
 
-func (s *RatingServer) ListRatings(ctx context.Context, request *emptypb.Empty) (*pb.ListRatingsResponse, error) {
+func (s *RatingServer) ListRatings(ctx context.Context, request *connect.Request[pb.ListRatingsRequest]) (*connect.Response[pb.ListRatingsResponse], error) {
 	ratings, err := s.queries.ListRatings(ctx)
 	if err != nil {
 		return nil, err
@@ -41,11 +40,11 @@ func (s *RatingServer) ListRatings(ctx context.Context, request *emptypb.Empty) 
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListRatingsResponse{Ratings: response}), nil
 }
 
-func (s *RatingServer) ListUserRatings(ctx context.Context, request *pb.ListUserRatingsRequest) (*pb.ListRatingsResponse, error) {
-	userId, err := mapper.FromProtoToDbId(request.UserId)
+func (s *RatingServer) ListUserRatings(ctx context.Context, request *connect.Request[pb.ListUserRatingsRequest]) (*connect.Response[pb.ListUserRatingsResponse], error) {
+	userId, err := mapper.FromProtoToDbId(request.Msg.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -60,11 +59,11 @@ func (s *RatingServer) ListUserRatings(ctx context.Context, request *pb.ListUser
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListUserRatingsResponse{Ratings: response}), nil
 }
 
-func (s *RatingServer) GetRating(ctx context.Context, request *pb.GetRatingRequest) (*pb.RatingResponse, error) {
-	id, err := mapper.FromProtoToDbId(request.Id)
+func (s *RatingServer) GetRating(ctx context.Context, request *connect.Request[pb.GetRatingRequest]) (*connect.Response[pb.GetRatingResponse], error) {
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +83,13 @@ func (s *RatingServer) GetRating(ctx context.Context, request *pb.GetRatingReque
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetRatingResponse{Rating: response}), nil
 }
 
-func (s *RatingServer) CreateRating(ctx context.Context, request *pb.CreateRatingRequest) (*pb.RatingResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *RatingServer) CreateRating(ctx context.Context, request *connect.Request[pb.CreateRatingRequest]) (*connect.Response[pb.CreateRatingResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	insertRatingParams, err := mapper.FromCreateRequestToInsertRating(request, authUser.UserID)
+	insertRatingParams, err := mapper.FromCreateRequestToInsertRating(request.Msg, authUser.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +115,13 @@ func (s *RatingServer) CreateRating(ctx context.Context, request *pb.CreateRatin
 
 	broker.BroadcastEvent(authUser.UserID, response)
 	s.statService.AddRatingToStats(ctx, response)
-	return response, nil
+	return connect.NewResponse(&pb.CreateRatingResponse{Rating: response}), nil
 }
 
-func (s *RatingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatingRequest) (*pb.RatingResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *RatingServer) UpdateRating(ctx context.Context, request *connect.Request[pb.UpdateRatingRequest]) (*connect.Response[pb.UpdateRatingResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	id, err := mapper.FromProtoToDbId(request.Id)
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +135,7 @@ func (s *RatingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatin
 		return nil, err
 	}
 
-	updateRatingParams, err := mapper.FromUpdateRequestToUpdateRating(request)
+	updateRatingParams, err := mapper.FromUpdateRequestToUpdateRating(request.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -153,13 +152,13 @@ func (s *RatingServer) UpdateRating(ctx context.Context, request *pb.UpdateRatin
 
 	broker.BroadcastEvent(authUser.UserID, response)
 	s.statService.UpdateRatingInStats(ctx, response)
-	return response, nil
+	return connect.NewResponse(&pb.UpdateRatingResponse{Rating: response}), nil
 }
 
-func (s *RatingServer) DeleteRating(ctx context.Context, request *pb.DeleteRatingRequest) (*pb.RatingResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *RatingServer) DeleteRating(ctx context.Context, request *connect.Request[pb.DeleteRatingRequest]) (*connect.Response[pb.DeleteRatingResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	id, err := mapper.FromProtoToDbId(request.Id)
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -185,14 +184,13 @@ func (s *RatingServer) DeleteRating(ctx context.Context, request *pb.DeleteRatin
 
 	broker.BroadcastEvent(authUser.UserID, response)
 	s.statService.RemoveRatingFromStats(ctx, response)
-	return response, nil
+	return connect.NewResponse(&pb.DeleteRatingResponse{Rating: response}), nil
 }
 
-func (h *RatingServer) StreamRatings(request *emptypb.Empty, stream pb.Rating_StreamRatingsServer) error {
-	ctx := stream.Context()
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (h *RatingServer) StreamRatings(ctx context.Context, request *connect.Request[pb.StreamRatingsRequest], stream *connect.ServerStream[pb.StreamRatingsResponse]) error {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 
-	ch := make(chan *pb.RatingResponse)
+	ch := make(chan *connect.Response[pb.StreamRatingsResponse])
 	broker.AddUserChan(authUser.UserID, ch)
 
 	defer broker.RemoveUserChan(authUser.UserID, ch)
@@ -201,7 +199,7 @@ func (h *RatingServer) StreamRatings(request *emptypb.Empty, stream pb.Rating_St
 		case <-ctx.Done():
 			return nil
 		case e := <-ch:
-			stream.Send(e)
+			stream.Send(e.Msg)
 		}
 	}
 }

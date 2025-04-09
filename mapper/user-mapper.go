@@ -1,13 +1,13 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
-	var users []*pb.UserResponse
+func FromDbUserListToResponse(u []db.User) ([]*pb.User, error) {
+	var users []*pb.User
 
 	for _, user := range u {
 		proto, err := FromDbUserToResponse(user)
@@ -18,16 +18,16 @@ func FromDbUserListToResponse(u []db.User) (*pb.ListUsersResponse, error) {
 		users = append(users, proto)
 	}
 
-	return &pb.ListUsersResponse{Users: users}, nil
+	return users, nil
 }
 
-func FromDbUserToResponse(u db.User) (*pb.UserResponse, error) {
+func FromDbUserToResponse(u db.User) (*pb.User, error) {
 	id, err := FromDbToProtoId(u.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	return &pb.UserResponse{
+	return &pb.User{
 		Id:        id,
 		Email:     u.Email,
 		Firstname: u.Firstname,

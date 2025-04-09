@@ -3,16 +3,15 @@ package server
 import (
 	"context"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
+	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type ContestServer struct {
-	pb.UnimplementedContestServer
 	queries  *db.Queries
 	connPool *pgxpool.Pool
 }
@@ -24,7 +23,7 @@ func NewContestServer(connPool *pgxpool.Pool) *ContestServer {
 	}
 }
 
-func (s *ContestServer) ListContests(ctx context.Context, request *emptypb.Empty) (*pb.ListContestsResponse, error) {
+func (s *ContestServer) ListContests(ctx context.Context, request *connect.Request[pb.ListContestsRequest]) (*connect.Response[pb.ListContestsResponse], error) {
 	contests, err := s.queries.ListContests(ctx)
 	if err != nil {
 		return nil, err
@@ -35,11 +34,11 @@ func (s *ContestServer) ListContests(ctx context.Context, request *emptypb.Empty
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.ListContestsResponse{Contests: response}), nil
 }
 
-func (s *ContestServer) GetContest(ctx context.Context, request *pb.GetContestRequest) (*pb.ContestResponse, error) {
-	id, err := mapper.FromProtoToDbId(request.Id)
+func (s *ContestServer) GetContest(ctx context.Context, request *connect.Request[pb.GetContestRequest]) (*connect.Response[pb.GetContestResponse], error) {
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -69,16 +68,16 @@ func (s *ContestServer) GetContest(ctx context.Context, request *pb.GetContestRe
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.GetContestResponse{Contest: response}), nil
 }
 
-func (s *ContestServer) CreateContest(ctx context.Context, request *pb.CreateContestRequest) (*pb.ContestResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ContestServer) CreateContest(ctx context.Context, request *connect.Request[pb.CreateContestRequest]) (*connect.Response[pb.CreateContestResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
 
-	insertParams := mapper.FromCreateRequestToInsertContest(request)
+	insertParams := mapper.FromCreateRequestToInsertContest(request.Msg)
 
 	contest, err := s.queries.InsertContest(ctx, insertParams)
 	if err != nil {
@@ -90,16 +89,16 @@ func (s *ContestServer) CreateContest(ctx context.Context, request *pb.CreateCon
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.CreateContestResponse{Contest: response}), nil
 }
 
-func (s *ContestServer) UpdateContest(ctx context.Context, request *pb.UpdateContestRequest) (*pb.ContestResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ContestServer) UpdateContest(ctx context.Context, request *connect.Request[pb.UpdateContestRequest]) (*connect.Response[pb.UpdateContestResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
 
-	updateParams, err := mapper.FromUpdateRequestToUpdateContest(request)
+	updateParams, err := mapper.FromUpdateRequestToUpdateContest(request.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -114,16 +113,16 @@ func (s *ContestServer) UpdateContest(ctx context.Context, request *pb.UpdateCon
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.UpdateContestResponse{Contest: response}), nil
 }
 
-func (s *ContestServer) DeleteContest(ctx context.Context, request *pb.DeleteContestRequest) (*pb.ContestResponse, error) {
-	authUser := ctx.Value(authz.AuthUserContextKey{}).(*authz.AuthUser)
+func (s *ContestServer) DeleteContest(ctx context.Context, request *connect.Request[pb.DeleteContestRequest]) (*connect.Response[pb.DeleteContestResponse], error) {
+	authUser := ctx.Value(authz.AuthUserContextKey).(*authz.AuthUser)
 	if err := authUser.CheckIsAdmin(); err != nil {
 		return nil, err
 	}
 
-	id, err := mapper.FromProtoToDbId(request.Id)
+	id, err := mapper.FromProtoToDbId(request.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -138,5 +137,5 @@ func (s *ContestServer) DeleteContest(ctx context.Context, request *pb.DeleteCon
 		return nil, err
 	}
 
-	return response, nil
+	return connect.NewResponse(&pb.DeleteContestResponse{Contest: response}), nil
 }

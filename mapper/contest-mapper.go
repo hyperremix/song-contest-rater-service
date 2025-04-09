@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 
-func FromDbContestListToResponse(c []db.Contest) (*pb.ListContestsResponse, error) {
-	var contests []*pb.ContestResponse
+func FromDbContestListToResponse(c []db.Contest) ([]*pb.Contest, error) {
+	var contests []*pb.Contest
 
 	for _, contest := range c {
 		proto, err := FromDbContestToResponse(contest)
@@ -17,16 +17,16 @@ func FromDbContestListToResponse(c []db.Contest) (*pb.ListContestsResponse, erro
 		contests = append(contests, proto)
 	}
 
-	return &pb.ListContestsResponse{Contests: contests}, nil
+	return contests, nil
 }
 
-func FromDbContestToResponse(c db.Contest) (*pb.ContestResponse, error) {
+func FromDbContestToResponse(c db.Contest) (*pb.Contest, error) {
 	id, err := FromDbToProtoId(c.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	return &pb.ContestResponse{
+	return &pb.Contest{
 		Id:        id,
 		City:      c.City,
 		Country:   c.Country,
@@ -38,18 +38,18 @@ func FromDbContestToResponse(c db.Contest) (*pb.ContestResponse, error) {
 	}, nil
 }
 
-func FromDbToContestWithActsAndUsersResponse(c db.Contest, ratings []db.Rating, contestActs []db.ListActsByContestIdRow, users []db.User) (*pb.ContestResponse, error) {
+func FromDbToContestWithActsAndUsersResponse(c db.Contest, ratings []db.Rating, contestActs []db.ListActsByContestIdRow, users []db.User) (*pb.Contest, error) {
 	contest, err := FromDbContestToResponse(c)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	actListResponse, err := FromDbOrderedActListToResponse(contestActs, ratings, users)
+	acts, err := FromDbOrderedActListToResponse(contestActs, ratings, users)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	return &pb.ContestResponse{
+	return &pb.Contest{
 		Id:        contest.Id,
 		City:      contest.City,
 		Country:   contest.Country,
@@ -58,7 +58,7 @@ func FromDbToContestWithActsAndUsersResponse(c db.Contest, ratings []db.Rating, 
 		ImageUrl:  contest.ImageUrl,
 		CreatedAt: contest.CreatedAt,
 		UpdatedAt: contest.UpdatedAt,
-		Acts:      actListResponse.Acts,
+		Acts:      acts,
 	}, nil
 }
 

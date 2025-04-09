@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5"
@@ -23,7 +23,7 @@ func NewService(pool *pgxpool.Pool) *Service {
 	}
 }
 
-func (s *Service) AddRatingToStats(ctx context.Context, rating *pb.RatingResponse) error {
+func (s *Service) AddRatingToStats(ctx context.Context, rating *pb.Rating) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func (s *Service) AddRatingToStats(ctx context.Context, rating *pb.RatingRespons
 	return s.addToGlobalStats(ctx, queries, rating)
 }
 
-func (s *Service) UpdateRatingInStats(ctx context.Context, rating *pb.RatingResponse) error {
+func (s *Service) UpdateRatingInStats(ctx context.Context, rating *pb.Rating) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func (s *Service) UpdateRatingInStats(ctx context.Context, rating *pb.RatingResp
 	return s.updateGlobalStats(ctx, queries, rating)
 }
 
-func (s *Service) RemoveRatingFromStats(ctx context.Context, rating *pb.RatingResponse) error {
+func (s *Service) RemoveRatingFromStats(ctx context.Context, rating *pb.Rating) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func (s *Service) RemoveRatingFromStats(ctx context.Context, rating *pb.RatingRe
 	return s.removeFromGlobalStats(ctx, queries, rating)
 }
 
-func (s *Service) addToUserStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) addToUserStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	userId, err := mapper.FromProtoToDbId(rating.User.Id)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func (s *Service) addToUserStats(ctx context.Context, queries *db.Queries, ratin
 	return nil
 }
 
-func (s *Service) updateUserStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) updateUserStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	userId, err := mapper.FromProtoToDbId(rating.User.Id)
 	if err != nil {
 		return err
@@ -164,7 +164,7 @@ func (s *Service) updateUserStats(ctx context.Context, queries *db.Queries, rati
 	return nil
 }
 
-func (s *Service) removeFromUserStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) removeFromUserStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	userId, err := mapper.FromProtoToDbId(rating.User.Id)
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (s *Service) removeFromUserStats(ctx context.Context, queries *db.Queries, 
 	return nil
 }
 
-func (s *Service) addToGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) addToGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	globalStats, err := queries.GetGlobalStats(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		upsertParams := mapper.FromRatingToDbGlobalStats(rating)
@@ -217,7 +217,7 @@ func (s *Service) addToGlobalStats(ctx context.Context, queries *db.Queries, rat
 	return nil
 }
 
-func (s *Service) updateGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) updateGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	globalStats, err := queries.GetGlobalStats(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -255,7 +255,7 @@ func (s *Service) updateGlobalStats(ctx context.Context, queries *db.Queries, ra
 	return nil
 }
 
-func (s *Service) removeFromGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.RatingResponse) error {
+func (s *Service) removeFromGlobalStats(ctx context.Context, queries *db.Queries, rating *pb.Rating) error {
 	globalStats, err := queries.GetGlobalStats(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil

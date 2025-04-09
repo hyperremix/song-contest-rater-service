@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 
-func FromManyParticipationsToProto(rows []db.Participation) (*pb.ListParticipationsResponse, error) {
-	protoResponses := make([]*pb.ParticipationResponse, len(rows))
+func FromManyParticipationsToProto(rows []db.Participation) ([]*pb.Participation, error) {
+	protoResponses := make([]*pb.Participation, len(rows))
 
 	for i, row := range rows {
 		protoResponse, err := FromParticipationToProto(&row)
@@ -16,10 +16,10 @@ func FromManyParticipationsToProto(rows []db.Participation) (*pb.ListParticipati
 		protoResponses[i] = protoResponse
 	}
 
-	return &pb.ListParticipationsResponse{Participations: protoResponses}, nil
+	return protoResponses, nil
 }
 
-func FromParticipationToProto(row *db.Participation) (*pb.ParticipationResponse, error) {
+func FromParticipationToProto(row *db.Participation) (*pb.Participation, error) {
 	contestId, err := FromDbToProtoId(row.ContestID)
 	if err != nil {
 		return nil, NewRequestBindingError(err)
@@ -30,7 +30,7 @@ func FromParticipationToProto(row *db.Participation) (*pb.ParticipationResponse,
 		return nil, NewRequestBindingError(err)
 	}
 
-	return &pb.ParticipationResponse{
+	return &pb.Participation{
 		ContestId: contestId,
 		ActId:     actId,
 		Order:     int32(row.Order.Int32),

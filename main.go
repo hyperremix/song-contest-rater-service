@@ -2,25 +2,23 @@ package main
 
 import (
 	"context"
-	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	clerk "github.com/clerk/clerk-sdk-go/v2"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-
-	pb "github.com/hyperremix/song-contest-rater-protos/v4"
 	"github.com/hyperremix/song-contest-rater-service/authz"
-	scrlogging "github.com/hyperremix/song-contest-rater-service/logging"
+	"github.com/hyperremix/song-contest-rater-service/custommiddleware"
 	"github.com/hyperremix/song-contest-rater-service/server"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo-contrib/echoprometheus"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"golang.org/x/net/http2"
 )
 
 func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
@@ -48,40 +46,17 @@ func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
 
 func main() {
 	godotenv.Load(".env")
+	e := echo.New()
 
 	ctx := context.Background()
 
 	clerk.SetKey(os.Getenv("SONGCONTESTRATERSERVICE_CLERK_SECRET_KEY"))
 
 	connPool, err := setupPool(ctx)
-	defer connPool.Close()
-
-	logger := zerolog.New(os.Stdout)
-
-	opts := []logging.Option{
-		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+	if err != nil {
+		e.Logger.Fatal(err)
 	}
-
-	requestAuthorizer := authz.NewRequestAuthorizer(connPool)
-
-	grpcServer := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			logging.UnaryServerInterceptor(scrlogging.InterceptorLogger(logger), opts...),
-			requestAuthorizer.UnaryServerInterceptor(),
-		),
-		grpc.ChainStreamInterceptor(
-			logging.StreamServerInterceptor(scrlogging.InterceptorLogger(logger), opts...),
-			requestAuthorizer.StreamServerInterceptor(),
-		),
-	)
-	reflection.Register(grpcServer)
-
-	pb.RegisterContestServer(grpcServer, server.NewContestServer(connPool))
-	pb.RegisterActServer(grpcServer, server.NewActServer(connPool))
-	pb.RegisterRatingServer(grpcServer, server.NewRatingServer(connPool))
-	pb.RegisterUserServer(grpcServer, server.NewUserServer(connPool))
-	pb.RegisterParticipationServer(grpcServer, server.NewParticipationServer(connPool))
-	pb.RegisterStatServer(grpcServer, server.NewStatServer(connPool))
+	defer connPool.Close()
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
@@ -89,19 +64,46 @@ func main() {
 		<-sigChan
 
 		connPool.Close()
-		grpcServer.GracefulStop()
-
-		<-ctx.Done()
 	}()
 
-	listen, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Fatal().Msgf("%v\n", err)
-	}
+	metricsGroup := e.Group("/metrics")
+	metricsGroup.GET("", echoprometheus.NewHandler())
 
-	log.Info().Msg("starting gRPC server... Listening on :8080")
-	err = grpcServer.Serve(listen)
-	if err != nil {
-		log.Fatal().Msgf("%v\n", err)
-	}
+	mainGroup := e.Group("")
+	mainGroup.Use(
+		middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
+		}),
+		custommiddleware.IncomingRequestLogger(),
+		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+			LogStatus:  true,
+			LogLatency: true,
+			LogMethod:  true,
+			LogURI:     true,
+			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+				logger := zerolog.Ctx(c.Request().Context())
+				logger.Info().
+					Int("status", v.Status).
+					Dur("latency", v.Latency).
+					Msg("response returned")
+
+				return nil
+			},
+			HandleError: true,
+		}),
+		authz.NewRequestAuthorizer(connPool).Authorize(),
+		echoprometheus.NewMiddleware("service"),
+		middleware.Recover(),
+	)
+
+	server.RegisterHandlers(e, connPool)
+
+	e.HTTPErrorHandler = server.ErrorHandler
+	// e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.StartH2CServer(":8080", &http2.Server{
+		MaxConcurrentStreams: 250,
+		MaxReadFrameSize:     1048576,
+		IdleTimeout:          10 * time.Second,
+	}))
 }
