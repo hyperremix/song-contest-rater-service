@@ -18,7 +18,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"golang.org/x/net/http2"
 )
 
 func setupPool(ctx context.Context) (*pgxpool.Pool, error) {
@@ -100,10 +99,10 @@ func main() {
 	server.RegisterHandlers(e, connPool)
 
 	e.HTTPErrorHandler = server.ErrorHandler
-	// e.Logger.Fatal(e.Start(":8080"))
-	e.Logger.Fatal(e.StartH2CServer(":8080", &http2.Server{
-		MaxConcurrentStreams: 250,
-		MaxReadFrameSize:     1048576,
-		IdleTimeout:          10 * time.Second,
-	}))
+	e.Logger.Fatal(e.Start(":8080"))
+	// e.Logger.Fatal(e.StartH2CServer(":8080", &http2.Server{
+	// 	MaxConcurrentStreams: 250,
+	// 	MaxReadFrameSize:     1048576,
+	// 	IdleTimeout:          10 * time.Second,
+	// }))
 }
