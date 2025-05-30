@@ -17,9 +17,9 @@ help: Makefile
 ## init: initialize project (make init module=github.com/user/project)
 .PHONY: init
 init:
-	go mod init ${module}
-	go install github.com/cosmtrek/air@latest
-	asdf reshim golang
+	go install github.com/air-verse/air@latest
+	go install github.com/jackc/tern/v2@latest
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
 ## env: output environment variables
 .PHONY: env
