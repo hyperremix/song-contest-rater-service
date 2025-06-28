@@ -32,6 +32,10 @@ func (s *StatServer) ListUserStats(ctx context.Context, request *connect.Request
 	}
 
 	globalStats, err := s.queries.GetGlobalStats(ctx)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return connect.NewResponse(&pb.ListUserStatsResponse{Stats: make([]*pb.UserStats, 0)}), nil
+	}
+
 	if err != nil {
 		return nil, err
 	}

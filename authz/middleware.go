@@ -63,7 +63,9 @@ func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 
 			authUser.UserID = userID
 			authUser.DbUser = dbUser
-			echoCtx.Set(AuthUserContextKey, authUser)
+
+			newCtx := context.WithValue(ctx, AuthUserContextKey, authUser)
+			echoCtx.SetRequest(echoCtx.Request().WithContext(newCtx))
 
 			return next(echoCtx)
 		}

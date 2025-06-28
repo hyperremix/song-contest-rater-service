@@ -12,7 +12,7 @@ import (
 
 var broker = event.NewBroker()
 
-func RegisterHandlers(e *echo.Echo, connPool *pgxpool.Pool) {
+func RegisterHandlers(e *echo.Group, connPool *pgxpool.Pool) {
 	e.Any(connectHandler(pb.NewContestServiceHandler(NewContestServer(connPool))))
 	e.Any(connectHandler(pb.NewUserServiceHandler(NewUserServer(connPool))))
 	e.Any(connectHandler(pb.NewStatServiceHandler(NewStatServer(connPool))))

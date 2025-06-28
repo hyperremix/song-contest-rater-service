@@ -72,7 +72,7 @@ func main() {
 	mainGroup.Use(
 		middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
-			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith, "connect-protocol-version"},
 		}),
 		custommiddleware.IncomingRequestLogger(),
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
@@ -96,7 +96,7 @@ func main() {
 		middleware.Recover(),
 	)
 
-	server.RegisterHandlers(e, connPool)
+	server.RegisterHandlers(mainGroup, connPool)
 
 	e.HTTPErrorHandler = server.ErrorHandler
 	e.Logger.Fatal(e.Start(":8080"))

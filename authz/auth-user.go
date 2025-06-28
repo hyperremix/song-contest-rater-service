@@ -32,7 +32,6 @@ func (u *AuthUser) CheckIsAdmin() error {
 }
 
 func (u *AuthUser) CheckIsOwner(obj any) error {
-
 	dbId := reflect.ValueOf(&obj).Elem().Elem().FieldByName("UserID").Interface().(pgtype.UUID)
 	id, err := mapper.FromDbToProtoId(dbId)
 	if err != nil {
@@ -47,7 +46,6 @@ func (u *AuthUser) CheckIsOwner(obj any) error {
 }
 
 func (u *AuthUser) CheckIsUser(user db.User) error {
-
 	if u.ClerkUser.ID == user.Sub {
 		return nil
 	}
