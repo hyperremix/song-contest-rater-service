@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v3"
+	pb "github.com/hyperremix/song-contest-rater-protos/v4"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5"

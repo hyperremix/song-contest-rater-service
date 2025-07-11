@@ -1,15 +1,15 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v3"
+	pb "github.com/hyperremix/song-contest-rater-protos/v4"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 
-func FromManyCompetitionActsToProto(rows []db.CompetitionsAct) (*pb.ListParticipationsResponse, error) {
+func FromManyParticipationsToProto(rows []db.Participation) (*pb.ListParticipationsResponse, error) {
 	protoResponses := make([]*pb.ParticipationResponse, len(rows))
 
 	for i, row := range rows {
-		protoResponse, err := FromCompetitionActToProto(&row)
+		protoResponse, err := FromParticipationToProto(&row)
 		if err != nil {
 			return nil, NewRequestBindingError(err)
 		}
@@ -19,8 +19,8 @@ func FromManyCompetitionActsToProto(rows []db.CompetitionsAct) (*pb.ListParticip
 	return &pb.ListParticipationsResponse{Participations: protoResponses}, nil
 }
 
-func FromCompetitionActToProto(row *db.CompetitionsAct) (*pb.ParticipationResponse, error) {
-	competitionId, err := FromDbToProtoId(row.CompetitionID)
+func FromParticipationToProto(row *db.Participation) (*pb.ParticipationResponse, error) {
+	contestId, err := FromDbToProtoId(row.ContestID)
 	if err != nil {
 		return nil, NewRequestBindingError(err)
 	}
@@ -31,41 +31,36 @@ func FromCompetitionActToProto(row *db.CompetitionsAct) (*pb.ParticipationRespon
 	}
 
 	return &pb.ParticipationResponse{
-		CompetitionId: competitionId,
-		ActId:         actId,
-		Order:         int32(row.Order.Int32),
+		ContestId: contestId,
+		ActId:     actId,
+		Order:     int32(row.Order.Int32),
 	}, nil
 }
 
-func FromCreateRequestToInsertCompetitionAct(request *pb.CreateParticipationRequest) (db.InsertCompetitionActParams, error) {
-	competitionId, err := FromProtoToDbId(request.CompetitionId)
+func FromCreateRequestToInsertParticipation(request *pb.CreateParticipationRequest) (db.InsertParticipationParams, error) {
+	contestId, err := FromProtoToDbId(request.ContestId)
 	if err != nil {
-		return db.InsertCompetitionActParams{}, NewRequestBindingError(err)
+		return db.InsertParticipationParams{}, NewRequestBindingError(err)
 	}
 
 	actId, err := FromProtoToDbId(request.ActId)
 	if err != nil {
-		return db.InsertCompetitionActParams{}, NewRequestBindingError(err)
+		return db.InsertParticipationParams{}, NewRequestBindingError(err)
 	}
 
-	return db.InsertCompetitionActParams{CompetitionID: competitionId, ActID: actId, Order: fromInt32ToInt4(request.Order)}, nil
+	return db.InsertParticipationParams{ContestID: contestId, ActID: actId, Order: fromInt32ToInt4(request.Order)}, nil
 }
 
-type DeleteParticipationRequest struct {
-	CompetitionID string `query:"competition_id"`
-	ActID         string `query:"act_id"`
-}
-
-func FromDeleteRequestToDeleteCompetitionAct(request *DeleteParticipationRequest) (db.DeleteCompetitionActParams, error) {
-	competitionId, err := FromProtoToDbId(request.CompetitionID)
+func FromDeleteRequestToDeleteParticipation(request *pb.DeleteParticipationRequest) (db.DeleteParticipationParams, error) {
+	contestId, err := FromProtoToDbId(request.ContestId)
 	if err != nil {
-		return db.DeleteCompetitionActParams{}, NewRequestBindingError(err)
+		return db.DeleteParticipationParams{}, NewRequestBindingError(err)
 	}
 
-	actId, err := FromProtoToDbId(request.ActID)
+	actId, err := FromProtoToDbId(request.ActId)
 	if err != nil {
-		return db.DeleteCompetitionActParams{}, NewRequestBindingError(err)
+		return db.DeleteParticipationParams{}, NewRequestBindingError(err)
 	}
 
-	return db.DeleteCompetitionActParams{CompetitionID: competitionId, ActID: actId}, nil
+	return db.DeleteParticipationParams{ContestID: contestId, ActID: actId}, nil
 }

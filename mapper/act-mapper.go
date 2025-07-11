@@ -3,7 +3,7 @@ package mapper
 import (
 	"sort"
 
-	pb "github.com/hyperremix/song-contest-rater-protos/v3"
+	pb "github.com/hyperremix/song-contest-rater-protos/v4"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/util"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -28,7 +28,7 @@ func FromDbActListToResponse(a []db.Act, r []db.Rating, u []db.User) (*pb.ListAc
 	return &pb.ListActsResponse{Acts: acts}, nil
 }
 
-func FromDbOrderedActListToResponse(a []db.ListActsByCompetitionIdRow, r []db.Rating, u []db.User) (*pb.ListActsResponse, error) {
+func FromDbOrderedActListToResponse(a []db.ListActsByContestIdRow, r []db.Rating, u []db.User) (*pb.ListActsResponse, error) {
 	var acts []*pb.ActResponse
 
 	for _, act := range a {
@@ -58,7 +58,7 @@ func getActRatings(r []db.Rating, actID pgtype.UUID) []db.Rating {
 	return ratings
 }
 
-func FromDbOrderedActToResponse(a db.ListActsByCompetitionIdRow, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
+func FromDbOrderedActToResponse(a db.ListActsByContestIdRow, r []db.Rating, u []db.User) (*pb.ActResponse, error) {
 	id, err := FromDbToProtoId(a.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
