@@ -113,7 +113,10 @@ func (s *RatingServer) CreateRating(ctx context.Context, request *connect.Reques
 		return nil, err
 	}
 
-	broker.BroadcastEvent(authUser.UserID, response)
+	broker.BroadcastEvent(authUser.UserID, &pb.StreamRatingsResponse{
+		EventType: pb.EventType_EVENT_TYPE_CREATED,
+		Rating:    response,
+	})
 	s.statService.AddRatingToStats(ctx, response)
 	return connect.NewResponse(&pb.CreateRatingResponse{Rating: response}), nil
 }
@@ -150,7 +153,10 @@ func (s *RatingServer) UpdateRating(ctx context.Context, request *connect.Reques
 		return nil, err
 	}
 
-	broker.BroadcastEvent(authUser.UserID, response)
+	broker.BroadcastEvent(authUser.UserID, &pb.StreamRatingsResponse{
+		EventType: pb.EventType_EVENT_TYPE_UPDATED,
+		Rating:    response,
+	})
 	s.statService.UpdateRatingInStats(ctx, response)
 	return connect.NewResponse(&pb.UpdateRatingResponse{Rating: response}), nil
 }
@@ -182,7 +188,10 @@ func (s *RatingServer) DeleteRating(ctx context.Context, request *connect.Reques
 		return nil, err
 	}
 
-	broker.BroadcastEvent(authUser.UserID, response)
+	broker.BroadcastEvent(authUser.UserID, &pb.StreamRatingsResponse{
+		EventType: pb.EventType_EVENT_TYPE_DELETED,
+		Rating:    response,
+	})
 	s.statService.RemoveRatingFromStats(ctx, response)
 	return connect.NewResponse(&pb.DeleteRatingResponse{Rating: response}), nil
 }

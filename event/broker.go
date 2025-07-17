@@ -76,7 +76,7 @@ func (b *Broker) RemoveUserChan(id string, ch chan *connect.Response[pb.StreamRa
 }
 
 // BroadcastEvent sends a message to all users except the source user
-func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.Rating) {
+func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.StreamRatingsResponse) {
 	b.actions <- func() {
 		for userId, chs := range b.users {
 			if userId == sourceUserId {
@@ -84,7 +84,7 @@ func (b *Broker) BroadcastEvent(sourceUserId string, event *pb.Rating) {
 			}
 
 			for _, ch := range chs {
-				ch <- connect.NewResponse(&pb.StreamRatingsResponse{Rating: event})
+				ch <- connect.NewResponse(event)
 			}
 		}
 	}

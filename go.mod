@@ -5,8 +5,8 @@ go 1.23.0
 toolchain go1.24.2
 
 require (
-	buf.build/gen/go/hyperremix/song-contest-rater-protos/connectrpc/go v1.18.1-20250409080607-573f52677895.1
-	buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go v1.36.6-20250409080607-573f52677895.1
+	buf.build/gen/go/hyperremix/song-contest-rater-protos/connectrpc/go v1.18.1-20250705055923-756ca1cd7a77.1
+	buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go v1.36.6-20250705055923-756ca1cd7a77.1
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/grpcreflect v1.3.0
 	github.com/clerk/clerk-sdk-go/v2 v2.2.0
