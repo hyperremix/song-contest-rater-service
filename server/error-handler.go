@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
@@ -11,50 +10,50 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// ErrorHandler handles errors for ConnectRPC requests
+// ConnectRPC handles its own error serialization, so we just need to log errors
 func ErrorHandler(err error, c echo.Context) {
 	if c.Response().Committed {
 		return
 	}
 
-	code := getCode(err, c)
-	c.JSON(int(code), map[string]string{
-		"code":    fmt.Sprintf("%d", code),
-		"message": err.Error(),
-	})
-}
-
-func getCode(err error, c echo.Context) connect.Code {
 	log := zerolog.Ctx(c.Request().Context())
 
+	// Log the error with appropriate level based on error type
 	if connectErr, ok := err.(*connect.Error); ok {
-		if connectErr.Code() == connect.CodePermissionDenied {
+		switch connectErr.Code() {
+		case connect.CodePermissionDenied:
 			log.Warn().Err(err).Msg("forbidden")
-		}
-
-		if connectErr.Code() == connect.CodeUnauthenticated {
+		case connect.CodeUnauthenticated:
 			log.Warn().Err(err).Msg("unauthorized")
+		case connect.CodeNotFound:
+			log.Warn().Err(err).Msg("not found")
+		case connect.CodeInvalidArgument:
+			log.Warn().Err(err).Msg("invalid argument")
+		case connect.CodeFailedPrecondition:
+			log.Warn().Err(err).Msg("failed precondition")
+		case connect.CodeUnavailable:
+			log.Error().Err(err).Msg("service unavailable")
+		default:
+			log.Error().Err(err).Msg("internal server error")
 		}
-
-		return connectErr.Code()
+	} else {
+		// Handle non-ConnectRPC errors
+		switch {
+		case errors.Is(err, mapper.NewRequestBindingError(nil)):
+			log.Warn().Err(err).Msg("bad request")
+		case errors.Is(err, mapper.NewResponseBindingError(nil)):
+			log.Warn().Err(err).Msg("bad request")
+		case errors.Is(err, pgx.ErrNoRows):
+			log.Warn().Err(err).Msg("not found")
+		case errors.Is(err, pgx.ErrTxClosed),
+			errors.Is(err, pgx.ErrTxCommitRollback):
+			log.Error().Err(err).Msg("service unavailable")
+		default:
+			log.Error().Err(err).Msg("internal server error")
+		}
 	}
 
-	switch {
-	case errors.Is(err, mapper.NewRequestBindingError(nil)):
-		log.Warn().Err(err).Msg("bad request")
-		return connect.CodeFailedPrecondition
-	case errors.Is(err, mapper.NewResponseBindingError(nil)):
-		log.Warn().Err(err).Msg("bad request")
-		return connect.CodeFailedPrecondition
-	case errors.Is(err, pgx.ErrNoRows):
-		log.Warn().Err(err).Msg("not found")
-		return connect.CodeNotFound
-
-	case errors.Is(err, pgx.ErrTxClosed),
-		errors.Is(err, pgx.ErrTxCommitRollback):
-		log.Error().Err(err).Msg("service unavailable")
-		return connect.CodeUnavailable
-	default:
-		log.Error().Err(err).Msg("internal server error")
-		return connect.CodeInternal
-	}
+	// Let ConnectRPC handle the error response
+	// Don't manually set HTTP status codes or JSON responses
 }

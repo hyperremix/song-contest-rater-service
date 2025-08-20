@@ -11,8 +11,6 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type UserServer struct {
@@ -65,7 +63,7 @@ func (s *UserServer) GetAuthUser(ctx context.Context, request *connect.Request[p
 
 	user, err := s.queries.GetUserBySub(ctx, authUser.ClerkUser.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, status.Errorf(codes.NotFound, "user not found")
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
 
 	if err != nil {

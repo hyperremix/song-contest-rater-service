@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
@@ -11,8 +12,6 @@ import (
 	"github.com/hyperremix/song-contest-rater-service/mapper"
 	"github.com/hyperremix/song-contest-rater-service/stat"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type RatingServer struct {
@@ -100,7 +99,7 @@ func (s *RatingServer) CreateRating(ctx context.Context, request *connect.Reques
 	}
 
 	if contest.StartTime.Time.After(time.Now()) {
-		return nil, status.Errorf(codes.InvalidArgument, "contest has not started yet")
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("contest has not started yet"))
 	}
 
 	rating, err := s.queries.InsertRating(ctx, insertRatingParams)
