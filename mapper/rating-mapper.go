@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	pb "github.com/hyperremix/song-contest-rater-protos/v3"
+	pb "buf.build/gen/go/hyperremix/song-contest-rater-protos/protocolbuffers/go/songcontestrater/v5"
 	"github.com/hyperremix/song-contest-rater-service/db"
 )
 
-func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResponse, error) {
-	var ratings []*pb.RatingResponse
+func FromDbRatingListToResponse(r []db.Rating, u []db.User) ([]*pb.Rating, error) {
+	var ratings []*pb.Rating
 
 	for _, rating := range r {
 		user := getUser(u, rating.UserID)
@@ -19,16 +19,16 @@ func FromDbRatingListToResponse(r []db.Rating, u []db.User) (*pb.ListRatingsResp
 		ratings = append(ratings, proto)
 	}
 
-	return &pb.ListRatingsResponse{Ratings: ratings}, nil
+	return ratings, nil
 }
 
-func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error) {
+func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.Rating, error) {
 	id, err := FromDbToProtoId(r.ID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
 
-	competitionId, err := FromDbToProtoId(r.CompetitionID)
+	contestId, err := FromDbToProtoId(r.ContestID)
 	if err != nil {
 		return nil, NewResponseBindingError(err)
 	}
@@ -38,7 +38,7 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 		return nil, NewResponseBindingError(err)
 	}
 
-	var userResponse *pb.UserResponse
+	var userResponse *pb.User
 	if u != nil {
 		userResponse, err = FromDbUserToResponse(*u)
 		if err != nil {
@@ -46,24 +46,24 @@ func FromDbRatingToResponse(r db.Rating, u *db.User) (*pb.RatingResponse, error)
 		}
 	}
 
-	return &pb.RatingResponse{
-		Id:            id,
-		CompetitionId: competitionId,
-		ActId:         actId,
-		Song:          r.Song.Int32,
-		Singing:       r.Singing.Int32,
-		Show:          r.Show.Int32,
-		Looks:         r.Looks.Int32,
-		Clothes:       r.Clothes.Int32,
-		Total:         r.Total.Int32,
-		User:          userResponse,
-		CreatedAt:     fromDbToProtoTimestamp(r.CreatedAt),
-		UpdatedAt:     fromDbToProtoTimestamp(r.UpdatedAt),
+	return &pb.Rating{
+		Id:        id,
+		ContestId: contestId,
+		ActId:     actId,
+		Song:      r.Song.Int32,
+		Singing:   r.Singing.Int32,
+		Show:      r.Show.Int32,
+		Looks:     r.Looks.Int32,
+		Clothes:   r.Clothes.Int32,
+		Total:     r.Total.Int32,
+		User:      userResponse,
+		CreatedAt: fromDbToProtoTimestamp(r.CreatedAt),
+		UpdatedAt: fromDbToProtoTimestamp(r.UpdatedAt),
 	}, nil
 }
 
 func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest, protoUserId string) (db.InsertRatingParams, error) {
-	competitionId, err := FromProtoToDbId(c.CompetitionId)
+	contestId, err := FromProtoToDbId(c.ContestId)
 	if err != nil {
 		return db.InsertRatingParams{}, NewRequestBindingError(err)
 	}
@@ -79,14 +79,14 @@ func FromCreateRequestToInsertRating(c *pb.CreateRatingRequest, protoUserId stri
 	}
 
 	return db.InsertRatingParams{
-		CompetitionID: competitionId,
-		ActID:         actId,
-		UserID:        userId,
-		Song:          fromInt32ToInt4(c.Song),
-		Singing:       fromInt32ToInt4(c.Singing),
-		Show:          fromInt32ToInt4(c.Show),
-		Looks:         fromInt32ToInt4(c.Looks),
-		Clothes:       fromInt32ToInt4(c.Clothes),
+		ContestID: contestId,
+		ActID:     actId,
+		UserID:    userId,
+		Song:      fromInt32ToInt4(c.Song),
+		Singing:   fromInt32ToInt4(c.Singing),
+		Show:      fromInt32ToInt4(c.Show),
+		Looks:     fromInt32ToInt4(c.Looks),
+		Clothes:   fromInt32ToInt4(c.Clothes),
 	}, nil
 }
 

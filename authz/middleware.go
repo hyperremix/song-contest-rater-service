@@ -3,11 +3,11 @@ package authz
 import (
 	"context"
 	"encoding/json"
-	"net/http"
+	"errors"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/clerk/clerk-sdk-go/v2/jwt"
-	"github.com/clerk/clerk-sdk-go/v2/user"
 	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/hyperremix/song-contest-rater-service/db"
 	"github.com/hyperremix/song-contest-rater-service/mapper"
@@ -41,10 +41,14 @@ func (c CustomClaims) Validate(ctx context.Context) error {
 func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(echoCtx echo.Context) error {
+			if echoCtx.Request().URL.Path == "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo" {
+				return next(echoCtx)
+			}
+
 			ctx := echoCtx.Request().Context()
 			authorization, ok := echoCtx.Request().Header["Authorization"]
 			if !ok {
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing authorization header")
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("missing authorization header"))
 			}
 
 			authUser, err := validateAuthorization(ctx, authorization[0])
@@ -59,7 +63,9 @@ func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 
 			authUser.UserID = userID
 			authUser.DbUser = dbUser
-			echoCtx.Set(AuthUserContextKey, authUser)
+
+			newCtx := context.WithValue(ctx, AuthUserContextKey, authUser)
+			echoCtx.SetRequest(echoCtx.Request().WithContext(newCtx))
 
 			return next(echoCtx)
 		}
@@ -67,22 +73,27 @@ func (r *RequestAuthorizer) Authorize() echo.MiddlewareFunc {
 }
 
 func validateAuthorization(ctx context.Context, authHeader string) (*AuthUser, error) {
+	log := zerolog.Ctx(ctx)
+
 	sessionToken := strings.TrimPrefix(authHeader, "Bearer ")
 	claims, err := jwt.Verify(ctx, &jwt.VerifyParams{
 		Token: sessionToken,
 	})
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not verify token")
+		log.Warn().Err(err).Msg("unauthorized")
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("could not verify token"))
 	}
 
-	user, err := user.Get(ctx, claims.Subject)
+	user, err := clerkuser.Get(ctx, claims.Subject)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "could not get user from token")
+		log.Warn().Err(err).Msg("unauthorized")
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("could not get user from token"))
 	}
 
 	var publicMetadata PublicMetadata
 	if err := json.Unmarshal(user.PublicMetadata, &publicMetadata); err != nil {
-		return nil, echo.NewHTTPError(http.StatusForbidden, "missing permission to access this resource")
+		log.Warn().Err(err).Msg("unauthorized")
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("missing permission to access this resource"))
 	}
 
 	return &AuthUser{

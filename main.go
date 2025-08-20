@@ -11,7 +11,7 @@ import (
 	clerk "github.com/clerk/clerk-sdk-go/v2"
 	"github.com/hyperremix/song-contest-rater-service/authz"
 	"github.com/hyperremix/song-contest-rater-service/custommiddleware"
-	"github.com/hyperremix/song-contest-rater-service/handler"
+	"github.com/hyperremix/song-contest-rater-service/server"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo-contrib/echoprometheus"
@@ -72,7 +72,7 @@ func main() {
 	mainGroup.Use(
 		middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
-			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith},
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderCacheControl, echo.HeaderXRequestedWith, "connect-protocol-version"},
 		}),
 		custommiddleware.IncomingRequestLogger(),
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
@@ -96,8 +96,13 @@ func main() {
 		middleware.Recover(),
 	)
 
-	handler.RegisterHandlerRoutes(mainGroup, connPool)
-	e.HTTPErrorHandler = handler.ErrorHandler
+	server.RegisterHandlers(mainGroup, connPool)
 
+	e.HTTPErrorHandler = server.ErrorHandler
 	e.Logger.Fatal(e.Start(":8080"))
+	// e.Logger.Fatal(e.StartH2CServer(":8080", &http2.Server{
+	// 	MaxConcurrentStreams: 250,
+	// 	MaxReadFrameSize:     1048576,
+	// 	IdleTimeout:          10 * time.Second,
+	// }))
 }
